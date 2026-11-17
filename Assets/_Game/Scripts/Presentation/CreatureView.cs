@@ -23,7 +23,7 @@ namespace TinyPlanet.Presentation
         private bool flies;
 
         private Planet planet;
-        private float radius;
+        private TerrainShape terrain;
         private int home;
         private Vector3 position;     // unit direction from the planet centre
         private Vector3 target;
@@ -90,6 +90,16 @@ namespace TinyPlanet.Presentation
                     Eyes(eye, new Vector3(0f, 0.4f, 0.15f), 0.05f);
                     break;
 
+                case CreatureShape.Shell:
+                    Part(PrimitiveType.Sphere, body, secondary, new Vector3(0f, 0.05f, 0.02f), new Vector3(0.16f, 0.09f, 0.40f));
+                    Part(PrimitiveType.Sphere, body, secondary, new Vector3(0f, 0.12f, 0.2f), new Vector3(0.11f, 0.13f, 0.11f));
+                    Part(PrimitiveType.Sphere, body, primary, new Vector3(0f, 0.2f, -0.04f), new Vector3(0.3f, 0.3f, 0.26f));
+                    Part(PrimitiveType.Sphere, body, secondary, new Vector3(0f, 0.27f, -0.05f), new Vector3(0.14f, 0.14f, 0.12f));
+                    Part(PrimitiveType.Cube, body, secondary, new Vector3(0.035f, 0.22f, 0.24f), new Vector3(0.02f, 0.1f, 0.02f), Quaternion.Euler(20f, 0f, 0f));
+                    Part(PrimitiveType.Cube, body, secondary, new Vector3(-0.035f, 0.22f, 0.24f), new Vector3(0.02f, 0.1f, 0.02f), Quaternion.Euler(20f, 0f, 0f));
+                    Eyes(eye, new Vector3(0f, 0.27f, 0.26f), 0.035f);
+                    break;
+
                 case CreatureShape.Glow:
                     flies = true;
                     hoverHeight = 1.15f;
@@ -104,11 +114,11 @@ namespace TinyPlanet.Presentation
         }
 
         /// <summary>Starts life on the planet: at home, popping in if it has just arrived.</summary>
-        public void Place(CreatureInstance creature, Planet planet, float planetRadius, bool animate)
+        public void Place(CreatureInstance creature, Planet planet, TerrainShape terrain, bool animate)
         {
             CreatureId = creature.Id;
             this.planet = planet;
-            radius = planetRadius;
+            this.terrain = terrain;
             home = creature.HomeCell;
             random = new System.Random(creature.Id * 7919 + planet.Seed);
 
@@ -201,7 +211,7 @@ namespace TinyPlanet.Presentation
                 moving = true;
             }
 
-            float step = Definition.moveSpeed / radius * dt;
+            float step = Definition.moveSpeed / terrain.Radius * dt;
             position = Vector3.RotateTowards(position, target, step, 0f).normalized;
 
             Vector3 toward = target - position;
@@ -240,7 +250,7 @@ namespace TinyPlanet.Presentation
 
         private void ApplyTransform(float scale)
         {
-            transform.localPosition = position * radius;
+            transform.localPosition = position * terrain.SurfaceRadius(position);
             transform.localRotation = Quaternion.LookRotation(facing, position);
             transform.localScale = Vector3.one * (Definition.size * Mathf.Max(0.001f, scale));
 

@@ -1,0 +1,32 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e00287c47b0988345a0aecb08cb58d5f, type: 3}
+  m_Name: Pine
+  m_EditorClassIdentifier: TinyPlanet.Game::TinyPlanet.Data.PlantDefinition
+  id: pine
+  displayName: Pine
+  seedCost: 140
+  energyPerMinute: 80
+  refundFraction: 0.5
+  life: 7
+  unlockLevel: 6
+  unlockCost: 3500
+  seedSeconds: 180
+  sproutSeconds: 420
+  hint: Hardy and evergreen, it climbs the rocks.
+  description: A tall, tough tree that thrives among the stones. It smells of cold air.
+  discoveryReward: 25
+  hintNoun: evergreen needles
+  shape: 5
+  primaryColor: {r: 0.1, g: 0.38, b: 0.25, a: 1}
+  secondaryColor: {r: 0.15, g: 0.46, b: 0.3, a: 1}
+  matureHeight: 1.6

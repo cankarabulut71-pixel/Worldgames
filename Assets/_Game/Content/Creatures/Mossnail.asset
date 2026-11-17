@@ -1,0 +1,46 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c64d6cd10d56eaa4bbf13bbd9aa6f8c7, type: 3}
+  m_Name: Mossnail
+  m_EditorClassIdentifier: TinyPlanet.Game::TinyPlanet.Data.CreatureDefinition
+  id: mossnail
+  displayName: Mossnail
+  rarity: 0
+  hint: Slow and steady on a soft green carpet among the stones.
+  description: It carries its house on its back and naps on moss between the rocks.
+  discoveryReward: 20
+  life: 5
+  conditions:
+  - kind: 0
+    plant: {fileID: 11400000, guid: b620f72ab1d2ce144b82b69f9fe3a432, type: 2}
+    otherPlant: {fileID: 0}
+    creature: {fileID: 0}
+    biome: {fileID: 0}
+    count: 3
+    radius: 1
+  - kind: 4
+    plant: {fileID: 0}
+    otherPlant: {fileID: 0}
+    creature: {fileID: 0}
+    biome: {fileID: 11400000, guid: 59a1612499fed8f41a1caedc694cae5c, type: 2}
+    count: 1
+    radius: 1
+  checkIntervalSeconds: 10
+  chancePerCheck: 0.3
+  populationCap: 3
+  leaveAfterSeconds: 90
+  shape: 5
+  primaryColor: {r: 0.82, g: 0.56, b: 0.3, a: 1}
+  secondaryColor: {r: 0.78, g: 0.82, b: 0.62, a: 1}
+  size: 1
+  moveSpeed: 0.2
+  wanderRadius: 1

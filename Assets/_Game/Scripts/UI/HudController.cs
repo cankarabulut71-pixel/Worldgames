@@ -38,6 +38,12 @@ namespace TinyPlanet.UI
         private float toastTimeLeft;
         private long shownEnergy = long.MinValue;
         private TMP_Text codexLabel;
+        private TMP_Text levelLabel;
+        private TMP_Text planetLabel;
+        private RectTransform levelFill;
+        private GameObject upgradesBadge;
+        private float levelTimer;
+        private Func<bool> anythingAffordable;
         private readonly Queue<(string heading, string name, int reward, Color accent)> banners =
             new Queue<(string heading, string name, int reward, Color accent)>();
         private RectTransform bannerRect;
@@ -56,11 +62,15 @@ namespace TinyPlanet.UI
         public RectTransform SafeArea => safeArea;
 
         public event Action CodexClicked;
+        public event Action UpgradesClicked;
+        public event Action PlanetsClicked;
+        public event Action DebugNewSeed;
+        public event Action DebugUnlockAll;
         public event Action DebugAddEnergy;
         public event Action<double> DebugSkipTime;
         public event Action DebugReset;
 
-        public void Init(PlanetSimulation simulation, GameConfig config, bool showDebug)
+        public void Init(PlanetSimulation simulation, IReadOnlyList<PlantDefinition> plants, bool showDebug)
         {
             this.simulation = simulation;
 
@@ -68,14 +78,62 @@ namespace TinyPlanet.UI
             BuildCanvas();
             BuildEnergy();
             BuildToast();
-            BuildTray(config);
+            BuildTray(plants);
             BuildCodexButton();
+            BuildPlanetButton();
+            BuildLevel();
             BuildBanner();
             if (showDebug) BuildDebug();
 
-            if (config.plants.Length > 0) Select(config.plants[0].id, remove: false);
+            RefreshTray();
             simulation.EnergyChanged += OnEnergyChanged;
+            simulation.PlantUnlocked += OnPlantUnlocked;
             OnEnergyChanged(simulation.Energy);
+            RefreshLevel();
+        }
+
+        public void SetPlanetName(string name) => planetLabel.text = name;
+
+        /// <summary>Lets the upgrades button show a marker when something can be unlocked.</summary>
+        public void SetUpgradeCheck(Func<bool> check)
+        {
+            anythingAffordable = check;
+            RefreshLevel();
+        }
+
+        /// <summary>Shows only the seeds the player has unlocked, keeping the current pick if it is still there.</summary>
+        public void RefreshTray()
+        {
+            string first = null;
+            foreach (var item in items)
+            {
+                if (item.PlantId == null) continue;
+                bool unlocked = simulation.IsPlantUnlocked(item.PlantId);
+                item.Group.gameObject.SetActive(unlocked);
+                if (unlocked && first == null) first = item.PlantId;
+            }
+            if (!RemoveMode && (SelectedPlantId == null || !simulation.IsPlantUnlocked(SelectedPlantId)))
+                Select(first, remove: false);
+        }
+
+        private void OnPlantUnlocked(string plantId)
+        {
+            RefreshTray();
+            Select(plantId, remove: false);
+        }
+
+        private void RefreshLevel()
+        {
+            levelTimer = 0f;
+            int level = simulation.Level;
+            levelLabel.text = string.Format(Strings.LevelButtonFormat, level);
+
+            int next = simulation.LifeForLevel(level + 1);
+            int current = simulation.LifeForLevel(level);
+            float fraction = next < 0 ? 1f : (float)((simulation.Life - current) / Math.Max(1, next - current));
+            levelFill.anchorMax = new Vector2(Mathf.Clamp01(fraction), 1f);
+
+            if (upgradesBadge != null) upgradesBadge.SetActive(anythingAffordable != null && anythingAffordable());
         }
 
         public void ShowToast(string message, float seconds = 1.8f)
@@ -141,7 +199,9 @@ namespace TinyPlanet.UI
 
         private void OnDestroy()
         {
-            if (simulation != null) simulation.EnergyChanged -= OnEnergyChanged;
+            if (simulation == null) return;
+            simulation.EnergyChanged -= OnEnergyChanged;
+            simulation.PlantUnlocked -= OnPlantUnlocked;
         }
 
         private void Update()
@@ -153,6 +213,9 @@ namespace TinyPlanet.UI
             if (!Mathf.Approximately(scaler.matchWidthOrHeight, match)) scaler.matchWidthOrHeight = match;
 
             UpdateBanner();
+
+            levelTimer += Time.unscaledDeltaTime;
+            if (levelTimer >= 0.5f) RefreshLevel();
 
             if (toastTimeLeft > 0f)
             {
@@ -252,7 +315,7 @@ namespace TinyPlanet.UI
             Stretch(toastLabel.rectTransform);
         }
 
-        private void BuildTray(GameConfig config)
+        private void BuildTray(IReadOnlyList<PlantDefinition> plants)
         {
             var tray = Panel("Seed Tray", safeArea, PanelColor);
             Anchor(tray, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0.5f, 0f));
@@ -289,7 +352,7 @@ namespace TinyPlanet.UI
             scroll.vertical = false;
             scroll.movementType = ScrollRect.MovementType.Elastic;
 
-            foreach (var plant in config.plants)
+            foreach (var plant in plants)
             {
                 string id = plant.id;
                 var item = TrayButton(content, plant.displayName, string.Format(Strings.CostFormat, plant.seedCost),
@@ -356,6 +419,55 @@ namespace TinyPlanet.UI
             codexLabel = button.GetComponentInChildren<TMP_Text>();
         }
 
+        // Top right: the current planet's name, which opens the planets screen.
+        private void BuildPlanetButton()
+        {
+            var button = TextButton(safeArea, string.Empty, 38f, PanelColor, () => PlanetsClicked?.Invoke());
+            var rect = (RectTransform)button.transform;
+            Anchor(rect, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(1f, 1f));
+            rect.anchoredPosition = new Vector2(-30f, -30f);
+            rect.sizeDelta = new Vector2(330f, 100f);
+            planetLabel = button.GetComponentInChildren<TMP_Text>();
+        }
+
+        // Second row under the energy: the planet level with its progress, and the upgrades button.
+        private void BuildLevel()
+        {
+            var levelButton = TextButton(safeArea, string.Empty, 34f, PanelColor, () => UpgradesClicked?.Invoke());
+            var rect = (RectTransform)levelButton.transform;
+            Anchor(rect, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f));
+            rect.anchoredPosition = new Vector2(30f, -145f);
+            rect.sizeDelta = new Vector2(400f, 90f);
+            levelLabel = levelButton.GetComponentInChildren<TMP_Text>();
+            levelLabel.rectTransform.offsetMin = new Vector2(0f, 14f);
+
+            var bar = Panel("Level Bar", rect, new Color(0.12f, 0.15f, 0.25f, 1f));
+            Anchor(bar, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0.5f, 0f));
+            bar.anchoredPosition = new Vector2(0f, 10f);
+            bar.sizeDelta = new Vector2(-40f, 12f);
+            bar.GetComponent<Image>().raycastTarget = false;
+            levelFill = Panel("Fill", bar, new Color(0.45f, 0.85f, 0.45f, 1f));
+            levelFill.anchorMin = Vector2.zero;
+            levelFill.anchorMax = new Vector2(0f, 1f);
+            levelFill.offsetMin = Vector2.zero;
+            levelFill.offsetMax = Vector2.zero;
+            levelFill.GetComponent<Image>().raycastTarget = false;
+
+            var upgrades = TextButton(safeArea, Strings.UpgradesButton, 38f, PanelColor, () => UpgradesClicked?.Invoke());
+            var upgradesRect = (RectTransform)upgrades.transform;
+            Anchor(upgradesRect, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f));
+            upgradesRect.anchoredPosition = new Vector2(450f, -145f);
+            upgradesRect.sizeDelta = new Vector2(250f, 90f);
+
+            var badge = Panel("Badge", upgradesRect, SelectedColor);
+            Anchor(badge, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(0.5f, 0.5f));
+            badge.anchoredPosition = new Vector2(-8f, -8f);
+            badge.sizeDelta = new Vector2(30f, 30f);
+            badge.GetComponent<Image>().raycastTarget = false;
+            upgradesBadge = badge.gameObject;
+            upgradesBadge.SetActive(false);
+        }
+
         private void BuildBanner()
         {
             bannerRect = Panel("Discovery Banner", safeArea, new Color(0.05f, 0.07f, 0.14f, 0.92f));
@@ -386,10 +498,11 @@ namespace TinyPlanet.UI
 
         private void BuildDebug()
         {
+            // Out of the way of the top bar and the discovery banner.
             var panel = Rect("Debug", safeArea);
-            Anchor(panel, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(1f, 1f));
-            panel.anchoredPosition = new Vector2(-30f, -30f);
-            panel.sizeDelta = new Vector2(190f, 4f * 78f);
+            Anchor(panel, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(1f, 0.5f));
+            panel.anchoredPosition = new Vector2(-20f, 120f);
+            panel.sizeDelta = new Vector2(190f, 6f * 78f);
 
             var layout = panel.gameObject.AddComponent<VerticalLayoutGroup>();
             layout.spacing = 8f;
@@ -401,6 +514,8 @@ namespace TinyPlanet.UI
             DebugButton(panel, Strings.DebugAddEnergy, () => DebugAddEnergy?.Invoke());
             DebugButton(panel, Strings.DebugSkipMinute, () => DebugSkipTime?.Invoke(60));
             DebugButton(panel, Strings.DebugSkipHour, () => DebugSkipTime?.Invoke(3600));
+            DebugButton(panel, Strings.DebugUnlockAll, () => DebugUnlockAll?.Invoke());
+            DebugButton(panel, Strings.DebugNewSeed, () => DebugNewSeed?.Invoke());
             DebugButton(panel, Strings.DebugReset, () => DebugReset?.Invoke());
         }
 

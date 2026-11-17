@@ -17,24 +17,27 @@ MonoBehaviour:
   rarity: 0
   hint: Wants a roof of leaves and a soft lawn.
   description: A busy, bushy-tailed climber. It nests in a tree and forages in the grass below.
-  discoveryReward: 25
+  discoveryReward: 20
+  life: 5
   conditions:
   - kind: 0
     plant: {fileID: 11400000, guid: 45db3c6e9d361a24a9577cdb5731627b, type: 2}
     otherPlant: {fileID: 0}
     creature: {fileID: 0}
+    biome: {fileID: 0}
     count: 1
     radius: 0
   - kind: 0
     plant: {fileID: 11400000, guid: f1918f954cf3b3c4e82040446d099cb3, type: 2}
     otherPlant: {fileID: 0}
     creature: {fileID: 0}
+    biome: {fileID: 0}
     count: 2
     radius: 1
   checkIntervalSeconds: 12
   chancePerCheck: 0.3
   populationCap: 2
-  leaveAfterSeconds: 120
+  leaveAfterSeconds: 90
   shape: 3
   primaryColor: {r: 0.72, g: 0.4, b: 0.22, a: 1}
   secondaryColor: {r: 0.95, g: 0.7, b: 0.45, a: 1}

@@ -1,0 +1,32 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e00287c47b0988345a0aecb08cb58d5f, type: 3}
+  m_Name: Crystalbloom
+  m_EditorClassIdentifier: TinyPlanet.Game::TinyPlanet.Data.PlantDefinition
+  id: crystalbloom
+  displayName: Crystalbloom
+  seedCost: 250
+  energyPerMinute: 130
+  refundFraction: 0.5
+  life: 10
+  unlockLevel: 7
+  unlockCost: 9000
+  seedSeconds: 240
+  sproutSeconds: 600
+  hint: Something gleams deep in the stone.
+  description: A strange bloom of living crystal. Nobody knows quite how it grows.
+  discoveryReward: 40
+  hintNoun: gleaming crystal
+  shape: 7
+  primaryColor: {r: 0.55, g: 0.85, b: 0.95, a: 1}
+  secondaryColor: {r: 0.85, g: 0.62, b: 1, a: 1}
+  matureHeight: 0.9

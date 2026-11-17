@@ -26,6 +26,7 @@ namespace TinyPlanet.Presentation
         private Vector2 velocity;
         private bool dragging;
         private float idleTime;
+        private Quaternion? focus;
 
         // Zoom is kept as a fraction of the allowed range, so the framing survives a change of aspect ratio.
         private float TargetDistance => Mathf.Lerp(minDistance, maxDistance, zoom);
@@ -39,6 +40,23 @@ namespace TinyPlanet.Presentation
             Apply();
         }
 
+        /// <summary>Turns the camera to look straight down at a point on the planet, given as a direction.</summary>
+        public void LookAt(Vector3 direction, bool instant)
+        {
+            if (direction.sqrMagnitude < 1e-6f) return;
+            Vector3 up = Mathf.Abs(Vector3.Dot(direction.normalized, Vector3.up)) > 0.95f ? Vector3.forward : Vector3.up;
+            var rotation = Quaternion.LookRotation(-direction, up);
+            velocity = Vector2.zero;
+            idleTime = 0f;
+            if (instant)
+            {
+                orbit = rotation;
+                focus = null;
+                if (cam != null) Apply();
+            }
+            else focus = rotation;
+        }
+
         /// <summary>Turns the planet under the finger by a drag given in screen pixels.</summary>
         public void Drag(Vector2 pixels)
         {
@@ -46,6 +64,7 @@ namespace TinyPlanet.Presentation
             float worldPerPixel = 2f * (distance - planetRadius) * Mathf.Tan(cam.fieldOfView * 0.5f * Mathf.Deg2Rad) / Screen.height;
             pendingDegrees += pixels * (worldPerPixel / planetRadius * Mathf.Rad2Deg);
             dragging = true;
+            focus = null;
         }
 
         public void EndDrag() => dragging = false;
@@ -65,7 +84,13 @@ namespace TinyPlanet.Presentation
 
             UpdateLimits();
 
-            if (dragging)
+            if (focus.HasValue && !dragging)
+            {
+                orbit = Quaternion.Slerp(orbit, focus.Value, 1f - Mathf.Exp(-3f * dt));
+                idleTime = 0f;
+                if (Quaternion.Angle(orbit, focus.Value) < 0.5f) focus = null;
+            }
+            else if (dragging)
             {
                 Turn(pendingDegrees);
                 velocity = Vector2.Lerp(velocity, pendingDegrees / dt, 0.5f);

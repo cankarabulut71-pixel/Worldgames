@@ -14,15 +14,15 @@ namespace TinyPlanet.Presentation
 
         private PlanetSimulation simulation;
         private MaterialLibrary materials;
-        private float radius;
+        private TerrainShape terrain;
 
-        public void Init(PlanetSimulation simulation, GameConfig config, MaterialLibrary materials)
+        public void Init(PlanetSimulation simulation, IEnumerable<CreatureDefinition> creatures, MaterialLibrary materials, TerrainShape terrain)
         {
             this.simulation = simulation;
             this.materials = materials;
-            radius = config.planetRadius;
+            this.terrain = terrain;
 
-            foreach (var definition in config.creatures)
+            foreach (var definition in creatures)
             {
                 if (definition != null) definitions[definition.id] = definition;
             }
@@ -108,7 +108,7 @@ namespace TinyPlanet.Presentation
                 view.Build(definition, materials);
             }
 
-            view.Place(creature, simulation.Planet, radius, animate);
+            view.Place(creature, simulation.Planet, terrain, animate);
             active[creature.Id] = view;
         }
 

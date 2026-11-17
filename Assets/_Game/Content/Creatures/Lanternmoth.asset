@@ -15,26 +15,30 @@ MonoBehaviour:
   id: lanternmoth
   displayName: Lanternmoth
   rarity: 2
-  hint: Old wood, a blossom at its side, still water close by... and it hates to fly alone.
-  description: A rare moth that glows like a little lantern. It rests in trees with flowers at their feet, beside water, and only when other wings are about.
-  discoveryReward: 120
+  hint: Weeping wood, a blossom at its side, still water close by... and it hates to fly alone.
+  description: A rare moth that glows like a little lantern. It rests in willows with flowers at their feet, beside water, and only when other wings are about.
+  discoveryReward: 150
+  life: 25
   conditions:
   - kind: 2
-    plant: {fileID: 11400000, guid: 45db3c6e9d361a24a9577cdb5731627b, type: 2}
+    plant: {fileID: 11400000, guid: 598f2eb93ad275747b7e0a828db35762, type: 2}
     otherPlant: {fileID: 11400000, guid: aac8d9eabd90fa04f90371590693e01f, type: 2}
     creature: {fileID: 0}
+    biome: {fileID: 0}
     count: 1
     radius: 0
   - kind: 1
     plant: {fileID: 0}
     otherPlant: {fileID: 0}
     creature: {fileID: 0}
+    biome: {fileID: 0}
     count: 1
     radius: 2
   - kind: 3
     plant: {fileID: 0}
     otherPlant: {fileID: 0}
     creature: {fileID: 11400000, guid: 1b63b132509308a49b4572b368d2bc58, type: 2}
+    biome: {fileID: 0}
     count: 1
     radius: 1
   checkIntervalSeconds: 15

@@ -1,0 +1,38 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f5c2d6b346d49ca4fbedc0fe3e46bea9, type: 3}
+  m_Name: Rocky
+  m_EditorClassIdentifier: TinyPlanet.Game::TinyPlanet.Data.BiomeDefinition
+  id: rocky
+  displayName: Rocky
+  description: Bare stone and thin air. Only the hardiest things grow here.
+  hintNoun: the high stones
+  weight: 0.9
+  waterFraction: 0
+  baseMoisture: 0.2
+  baseFertility: 0.3
+  plants:
+  - {fileID: 11400000, guid: b620f72ab1d2ce144b82b69f9fe3a432, type: 2}
+  - {fileID: 11400000, guid: 5b9bca29dcd37af4fb091fe650322f82, type: 2}
+  - {fileID: 11400000, guid: 8119e4e84dff75d429eab9a747f3bde9, type: 2}
+  unlockLevel: 5
+  unlockCost: 3000
+  baseHeight: 0.14
+  hilliness: 0.75
+  coverShape: 2
+  coverColor: {r: 0.14, g: 0.42, b: 0.28, a: 1}
+  coverAccent: {r: 0.22, g: 0.52, b: 0.32, a: 1}
+  coverPerCell: 3
+  groundColor: {r: 0.5, g: 0.51, b: 0.53, a: 1}
+  dotColor: {r: 0.52, g: 0.46, b: 0.38, a: 1}
+  decorationColor: {r: 0.52, g: 0.5, b: 0.48, a: 1}
+  decorationDensity: 0.45

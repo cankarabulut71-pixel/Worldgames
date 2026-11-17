@@ -18,11 +18,13 @@ MonoBehaviour:
   hint: Never settles for a lonely bloom.
   description: Drifts from blossom to blossom, sipping nectar. Where there are flowers in company, there are petalwings.
   discoveryReward: 20
+  life: 5
   conditions:
   - kind: 0
     plant: {fileID: 11400000, guid: aac8d9eabd90fa04f90371590693e01f, type: 2}
     otherPlant: {fileID: 0}
     creature: {fileID: 0}
+    biome: {fileID: 0}
     count: 2
     radius: 1
   checkIntervalSeconds: 10

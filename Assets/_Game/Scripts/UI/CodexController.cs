@@ -17,6 +17,9 @@ namespace TinyPlanet.UI
         public string Description;
         public bool IsCreature;
         public Rarity Rarity;
+
+        /// <summary>For plants: the lands it grows in.</summary>
+        public string Where;
     }
 
     /// <summary>
@@ -44,6 +47,7 @@ namespace TinyPlanet.UI
         private Func<string, bool, Texture> iconFor;
         private RectTransform root;
         private TMP_Text progressLabel;
+        private Func<(int found, int total)> overall;
         private RawImage detailIcon;
         private TMP_Text detailName;
         private TMP_Text detailRarity;
@@ -65,8 +69,10 @@ namespace TinyPlanet.UI
             }
         }
 
-        public void Init(RectTransform parent, PlanetSimulation simulation, IReadOnlyList<CodexEntry> entries, Func<string, bool, Texture> iconFor)
+        public void Init(RectTransform parent, PlanetSimulation simulation, IReadOnlyList<CodexEntry> entries, Func<string, bool, Texture> iconFor,
+            Func<(int found, int total)> overall = null)
         {
+            this.overall = overall;
             this.simulation = simulation;
             this.iconFor = iconFor;
 
@@ -109,6 +115,12 @@ namespace TinyPlanet.UI
             var (found, total) = Progress();
             int percent = total > 0 ? Mathf.RoundToInt(100f * found / total) : 0;
             progressLabel.text = string.Format(Strings.CodexProgressFormat, found, total, percent);
+            if (overall != null)
+            {
+                var (allFound, allTotal) = overall();
+                int allPercent = allTotal > 0 ? Mathf.RoundToInt(100f * allFound / allTotal) : 0;
+                progressLabel.text += "\n" + string.Format(Strings.CodexOverallFormat, allFound, allTotal, allPercent);
+            }
 
             foreach (var card in cards)
             {
@@ -116,7 +128,7 @@ namespace TinyPlanet.UI
                 card.Icon.texture = iconFor(card.Entry.Id, !known);
                 card.Icon.color = known ? Color.white : SilhouetteTint;
                 card.Name.text = known ? card.Entry.Name : Strings.Unknown;
-                card.Sub.text = card.Entry.IsCreature ? Strings.Rarity(card.Entry.Rarity) : Strings.Plant;
+                card.Sub.text = card.Entry.IsCreature ? Strings.Rarity(card.Entry.Rarity) : card.Entry.Where ?? Strings.Plant;
                 card.Sub.color = card.Entry.IsCreature ? RarityColor(card.Entry.Rarity) : new Color(1f, 1f, 1f, 0.6f);
                 card.Frame.color = card.Entry == selected ? SelectedColor : CardColor;
             }
@@ -138,7 +150,8 @@ namespace TinyPlanet.UI
             detailIcon.texture = iconsLoaded ? iconFor(selected.Id, !known) : null;
             detailIcon.color = known ? Color.white : SilhouetteTint;
             detailName.text = known ? selected.Name : Strings.Unknown;
-            detailRarity.text = selected.IsCreature ? Strings.Rarity(selected.Rarity) : Strings.Plant;
+            detailRarity.text = selected.IsCreature ? Strings.Rarity(selected.Rarity)
+                : string.IsNullOrEmpty(selected.Where) ? Strings.Plant : string.Format(Strings.GrowsInFormat, selected.Where);
             detailRarity.color = selected.IsCreature ? RarityColor(selected.Rarity) : new Color(1f, 1f, 1f, 0.6f);
             detailText.text = known && !string.IsNullOrEmpty(selected.Description) ? selected.Description : "\"" + selected.Hint + "\"";
             detailText.fontStyle = known ? FontStyles.Normal : FontStyles.Italic;
@@ -162,7 +175,8 @@ namespace TinyPlanet.UI
 
             progressLabel = Label(root, string.Empty, 34f, TextAlignmentOptions.Left);
             progressLabel.color = new Color(1f, 1f, 1f, 0.7f);
-            TopBand(progressLabel.rectTransform, 110f, 50f);
+            TopBand(progressLabel.rectTransform, 108f, 84f);
+            progressLabel.textWrappingMode = TextWrappingModes.Normal;
             progressLabel.rectTransform.offsetMin = new Vector2(52f, progressLabel.rectTransform.offsetMin.y);
 
             var close = TextButton(root, Strings.CodexClose, 38f, ButtonColor, Close);
@@ -176,7 +190,7 @@ namespace TinyPlanet.UI
         {
             var area = Rect("Entries", root);
             area.offsetMin = new Vector2(0f, 470f);
-            area.offsetMax = new Vector2(0f, -180f);
+            area.offsetMax = new Vector2(0f, -210f);
 
             var viewport = Rect("Viewport", area);
             viewport.gameObject.AddComponent<RectMask2D>();

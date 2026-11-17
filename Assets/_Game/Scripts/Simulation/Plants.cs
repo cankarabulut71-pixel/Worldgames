@@ -20,6 +20,20 @@ namespace TinyPlanet.Simulation
         public float RefundFraction;
         public int DiscoveryReward;
 
+        /// <summary>How much a mature one adds to the planet's life, which raises the planet level.</summary>
+        public float Life = 1f;
+
+        /// <summary>Planet level needed before the seed can be bought.</summary>
+        public int UnlockLevel = 1;
+
+        /// <summary>Energy the seed costs to unlock. A seed that is free at level one is known from the start.</summary>
+        public int UnlockCost;
+
+        public bool StartsUnlocked => UnlockCost <= 0 && UnlockLevel <= 1;
+
+        /// <summary>A vague phrase for this plant in generated codex hints, e.g. "soft moss".</summary>
+        public string HintNoun;
+
         public double SecondsToMature => (double)SeedSeconds + SproutSeconds;
     }
 

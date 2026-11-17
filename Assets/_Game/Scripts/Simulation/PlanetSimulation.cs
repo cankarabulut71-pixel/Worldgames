@@ -11,6 +11,24 @@ namespace TinyPlanet.Simulation
         UnknownPlant,
         NotEnoughEnergy,
         Water,
+
+        /// <summary>The cell's biome has not been woken yet.</summary>
+        Dormant,
+
+        /// <summary>The seed has not been unlocked yet.</summary>
+        Locked,
+
+        /// <summary>The plant does not grow in the cell's biome.</summary>
+        WrongBiome,
+    }
+
+    public enum UnlockResult
+    {
+        Ok,
+        Unknown,
+        AlreadyUnlocked,
+        LevelTooLow,
+        NotEnoughEnergy,
     }
 
     public sealed class EconomySettings
@@ -20,6 +38,9 @@ namespace TinyPlanet.Simulation
 
         /// <summary>How many missed spawn checks per species are replayed after time away.</summary>
         public int MaxCatchUpChecks = 30;
+
+        /// <summary>Life needed to reach level 2, 3, 4 and so on. The planet starts at level 1.</summary>
+        public int[] LevelLifeThresholds = Array.Empty<int>();
     }
 
     /// <summary>
@@ -40,6 +61,9 @@ namespace TinyPlanet.Simulation
         private readonly List<CreatureInstance> creatures = new List<CreatureInstance>();
         private readonly HashSet<string> discovered = new HashSet<string>();
         private readonly List<int> homeCandidates = new List<int>();
+        private readonly List<PlantSpec> plantSpecList = new List<PlantSpec>();
+        private readonly HashSet<string> unlockedBiomes = new HashSet<string>();
+        private readonly HashSet<string> unlockedPlants = new HashSet<string>();
         private long lastAccrualUtcTicks;
         private long evaluationUtcTicks;
         private int nextCreatureId = 1;
@@ -59,7 +83,17 @@ namespace TinyPlanet.Simulation
             this.random = random ?? new Random(unchecked(planet.Seed * 31 + Environment.TickCount));
 
             foreach (var spec in plantSpecs)
+            {
                 specs[spec.Id] = spec;
+                plantSpecList.Add(spec);
+                if (spec.StartsUnlocked) unlockedPlants.Add(spec.Id);
+            }
+            foreach (var biome in planet.Biomes)
+            {
+                if (biome.StartsUnlocked) unlockedBiomes.Add(biome.Id);
+            }
+            // A planet always has somewhere to plant.
+            if (unlockedBiomes.Count == 0) unlockedBiomes.Add(planet.Biomes[0].Id);
             if (creatureSpecList != null)
                 creatureSpecs.AddRange(creatureSpecList);
 
@@ -67,7 +101,8 @@ namespace TinyPlanet.Simulation
             long now = clock.UtcNow.Ticks;
             evaluationUtcTicks = now;
 
-            if (save == null)
+            // A planet that was discovered but never visited starts fresh.
+            if (save == null || !save.started)
             {
                 Energy = this.economy.StartingEnergy;
                 lastAccrualUtcTicks = now;
@@ -78,12 +113,28 @@ namespace TinyPlanet.Simulation
             Energy = save.energy;
             lastAccrualUtcTicks = save.lastAccrualUtcTicks;
             nextCreatureId = Math.Max(1, save.nextCreatureId);
+            Level = Math.Max(1, save.planetLevel);
+            foreach (var id in save.unlockedBiomes) unlockedBiomes.Add(id);
+            foreach (var id in save.unlockedPlants) unlockedPlants.Add(id);
+
+            // Before biomes and unlocks existed, every seed in the tray was free to use.
+            if (save.loadedFromVersion < 3)
+            {
+                foreach (var saved in save.plants) unlockedPlants.Add(saved.specId ?? string.Empty);
+            }
 
             foreach (var saved in save.plants)
             {
                 // Tolerate saves that mention content or cells that no longer exist.
-                if (!planet.Grid.IsValid(saved.cell) || occupants[saved.cell] != null || planet.IsWater(saved.cell)) continue;
+                if (!planet.Grid.IsValid(saved.cell) || occupants[saved.cell] != null) continue;
                 if (!specs.TryGetValue(saved.specId ?? string.Empty, out var spec)) continue;
+
+                // The land may have changed under a plant (for example a new planet layout): give its seed back.
+                if (planet.IsWater(saved.cell) || !IsAwake(saved.cell) || !planet.BiomeOf(saved.cell).Allows(spec.Id))
+                {
+                    Energy += spec.SeedCost;
+                    continue;
+                }
 
                 var plant = new PlantInstance(spec, saved.cell, saved.plantedAtUtcTicks);
                 plant.ReportedStage = plant.StageAt(now);
@@ -115,6 +166,37 @@ namespace TinyPlanet.Simulation
 
         public Planet Planet { get; }
         public double Energy { get; private set; }
+
+        /// <summary>Planet level, starting at 1. It rises with life and never falls.</summary>
+        public int Level { get; private set; } = 1;
+
+        /// <summary>Total life on the planet: mature plants and living creatures, weighted by species.</summary>
+        public double Life
+        {
+            get
+            {
+                long now = evaluationUtcTicks;
+                double life = 0;
+                foreach (var plant in plants)
+                {
+                    if (plant.MatureAtUtcTicks <= now) life += plant.Spec.Life;
+                }
+                foreach (var creature in creatures) life += creature.Spec.Life;
+                return life;
+            }
+        }
+
+        public int MaxLevel => economy.LevelLifeThresholds.Length + 1;
+
+        /// <summary>Life needed to reach a level; zero for level 1, -1 past the last level.</summary>
+        public int LifeForLevel(int level)
+        {
+            if (level <= 1) return 0;
+            int index = level - 2;
+            return index < economy.LevelLifeThresholds.Length ? economy.LevelLifeThresholds[index] : -1;
+        }
+
+        public IReadOnlyList<PlantSpec> PlantSpecs => plantSpecList;
         public IReadOnlyList<PlantInstance> Plants => plants;
         public IReadOnlyList<CreatureInstance> Creatures => creatures;
         public IReadOnlyList<CreatureSpec> CreatureSpecs => creatureSpecs;
@@ -127,6 +209,9 @@ namespace TinyPlanet.Simulation
         public event Action<CreatureInstance> CreatureArrived;
         public event Action<CreatureInstance> CreatureMoved;
         public event Action<CreatureInstance> CreatureLeft;
+        public event Action<int> LevelChanged;
+        public event Action<string> BiomeUnlocked;
+        public event Action<string> PlantUnlocked;
 
         /// <summary>A plant or creature species seen for the first time, and the energy it awarded.</summary>
         public event Action<string, int> SpeciesDiscovered;
@@ -147,6 +232,88 @@ namespace TinyPlanet.Simulation
             }
             spec = null;
             return false;
+        }
+
+        public bool IsBiomeUnlocked(string biomeId) => unlockedBiomes.Contains(biomeId ?? string.Empty);
+
+        public bool IsPlantUnlocked(string plantId) => unlockedPlants.Contains(plantId ?? string.Empty);
+
+        /// <summary>True when the cell's biome has been woken, so things can be planted there.</summary>
+        public bool IsAwake(int cell) => unlockedBiomes.Contains(Planet.BiomeOf(cell).Id);
+
+        public bool TryGetBiome(string biomeId, out BiomeSpec biome)
+        {
+            foreach (var candidate in Planet.Biomes)
+            {
+                if (candidate.Id == biomeId)
+                {
+                    biome = candidate;
+                    return true;
+                }
+            }
+            biome = null;
+            return false;
+        }
+
+        public UnlockResult CanUnlockBiome(string biomeId)
+        {
+            if (!TryGetBiome(biomeId, out var biome)) return UnlockResult.Unknown;
+            return CanUnlock(IsBiomeUnlocked(biomeId), biome.UnlockLevel, biome.UnlockCost);
+        }
+
+        public UnlockResult CanUnlockPlant(string plantId)
+        {
+            if (!TryGetSpec(plantId, out var spec)) return UnlockResult.Unknown;
+            return CanUnlock(IsPlantUnlocked(plantId), spec.UnlockLevel, spec.UnlockCost);
+        }
+
+        /// <summary>Wakes a dormant biome so it can be planted, paying its energy cost.</summary>
+        public UnlockResult TryUnlockBiome(string biomeId)
+        {
+            var result = CanUnlockBiome(biomeId);
+            if (result != UnlockResult.Ok) return result;
+            TryGetBiome(biomeId, out var biome);
+            SetEnergy(Energy - biome.UnlockCost);
+            unlockedBiomes.Add(biomeId);
+            BiomeUnlocked?.Invoke(biomeId);
+            return UnlockResult.Ok;
+        }
+
+        /// <summary>Adds a seed to the tray, paying its energy cost.</summary>
+        public UnlockResult TryUnlockPlant(string plantId)
+        {
+            var result = CanUnlockPlant(plantId);
+            if (result != UnlockResult.Ok) return result;
+            SetEnergy(Energy - specs[plantId].UnlockCost);
+            unlockedPlants.Add(plantId);
+            PlantUnlocked?.Invoke(plantId);
+            return UnlockResult.Ok;
+        }
+
+        /// <summary>Development builds only: every biome and seed, and the top level, for free.</summary>
+        public void DebugUnlockAll()
+        {
+            while (Level < MaxLevel)
+            {
+                Level++;
+                LevelChanged?.Invoke(Level);
+            }
+            foreach (var biome in Planet.Biomes)
+            {
+                if (unlockedBiomes.Add(biome.Id)) BiomeUnlocked?.Invoke(biome.Id);
+            }
+            foreach (var spec in plantSpecList)
+            {
+                if (unlockedPlants.Add(spec.Id)) PlantUnlocked?.Invoke(spec.Id);
+            }
+        }
+
+        private UnlockResult CanUnlock(bool unlocked, int level, int cost)
+        {
+            if (unlocked) return UnlockResult.AlreadyUnlocked;
+            if (Level < level) return UnlockResult.LevelTooLow;
+            if (Energy < cost) return UnlockResult.NotEnoughEnergy;
+            return UnlockResult.Ok;
         }
 
         public bool IsDiscovered(string speciesId) => discovered.Contains(speciesId ?? string.Empty);
@@ -177,6 +344,9 @@ namespace TinyPlanet.Simulation
             if (!TryGetSpec(specId, out var spec)) return PlantResult.UnknownPlant;
             if (Planet.IsWater(cell)) return PlantResult.Water;
             if (occupants[cell] != null) return PlantResult.CellOccupied;
+            if (!IsAwake(cell)) return PlantResult.Dormant;
+            if (!IsPlantUnlocked(specId)) return PlantResult.Locked;
+            if (!Planet.BiomeOf(cell).Allows(specId)) return PlantResult.WrongBiome;
             if (Energy < spec.SeedCost) return PlantResult.NotEnoughEnergy;
 
             SetEnergy(Energy - spec.SeedCost);
@@ -231,6 +401,7 @@ namespace TinyPlanet.Simulation
             }
 
             UpdateCreatures(now);
+            UpdateLevel();
         }
 
         public SaveData ToSave()
@@ -246,7 +417,12 @@ namespace TinyPlanet.Simulation
                 lastAccrualUtcTicks = lastAccrualUtcTicks,
                 savedAtUtcTicks = now,
                 nextCreatureId = nextCreatureId,
+                planetLevel = Level,
             };
+            data.unlockedBiomes.AddRange(unlockedBiomes);
+            data.unlockedBiomes.Sort(StringComparer.Ordinal);
+            data.unlockedPlants.AddRange(unlockedPlants);
+            data.unlockedPlants.Sort(StringComparer.Ordinal);
             foreach (var plant in plants)
             {
                 data.plants.Add(new PlantSave
@@ -408,6 +584,19 @@ namespace TinyPlanet.Simulation
             if (!discovered.Add(speciesId)) return;
             if (reward > 0) SetEnergy(Energy + reward);
             SpeciesDiscovered?.Invoke(speciesId, reward);
+        }
+
+        // ---------- level ----------
+
+        // The level only ever rises: clearing plants away never takes a level back.
+        private void UpdateLevel()
+        {
+            double life = Life;
+            while (Level < MaxLevel && life >= LifeForLevel(Level + 1))
+            {
+                Level++;
+                LevelChanged?.Invoke(Level);
+            }
         }
 
         // ---------- energy ----------

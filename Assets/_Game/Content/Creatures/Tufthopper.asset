@@ -17,12 +17,14 @@ MonoBehaviour:
   rarity: 0
   hint: Hides in thick tufts.
   description: A shy, springy nibbler. It only feels safe when grass is all around it.
-  discoveryReward: 15
+  discoveryReward: 20
+  life: 5
   conditions:
   - kind: 0
     plant: {fileID: 11400000, guid: f1918f954cf3b3c4e82040446d099cb3, type: 2}
     otherPlant: {fileID: 0}
     creature: {fileID: 0}
+    biome: {fileID: 0}
     count: 3
     radius: 1
   checkIntervalSeconds: 8

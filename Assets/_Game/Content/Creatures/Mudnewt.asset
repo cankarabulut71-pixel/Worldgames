@@ -18,17 +18,20 @@ MonoBehaviour:
   hint: Basks where green meets blue.
   description: A sleepy little newt that suns itself on grassy banks, never far from a pond.
   discoveryReward: 20
+  life: 5
   conditions:
   - kind: 1
     plant: {fileID: 0}
     otherPlant: {fileID: 0}
     creature: {fileID: 0}
+    biome: {fileID: 0}
     count: 1
     radius: 1
   - kind: 0
     plant: {fileID: 11400000, guid: f1918f954cf3b3c4e82040446d099cb3, type: 2}
     otherPlant: {fileID: 0}
     creature: {fileID: 0}
+    biome: {fileID: 0}
     count: 2
     radius: 1
   checkIntervalSeconds: 10

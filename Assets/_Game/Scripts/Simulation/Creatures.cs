@@ -24,6 +24,9 @@ namespace TinyPlanet.Simulation
         public float LeaveAfterSeconds = 90f;
         public int DiscoveryReward = 10;
 
+        /// <summary>How much one living here adds to the planet's life, which raises the planet level.</summary>
+        public float Life = 3f;
+
         /// <summary>All must hold around one cell (the creature's home) for the creature to come or stay.</summary>
         public List<SpawnCondition> Conditions = new List<SpawnCondition>();
     }
@@ -137,5 +140,15 @@ namespace TinyPlanet.Simulation
         public CreatureLivesHere(string creatureId) => CreatureId = creatureId;
 
         internal override bool IsMet(PlanetSimulation sim, int home) => sim.CountCreatures(CreatureId) > 0;
+    }
+
+    /// <summary>Home is in one particular biome.</summary>
+    public sealed class InBiome : SpawnCondition
+    {
+        public readonly string BiomeId;
+
+        public InBiome(string biomeId) => BiomeId = biomeId;
+
+        internal override bool IsMet(PlanetSimulation sim, int home) => sim.Planet.BiomeOf(home).Id == BiomeId;
     }
 }

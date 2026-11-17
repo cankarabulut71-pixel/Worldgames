@@ -12,6 +12,7 @@ namespace TinyPlanet.Data
         Crawler,
         Climber,
         Glow,
+        Shell,
     }
 
     public enum ConditionKind
@@ -24,6 +25,8 @@ namespace TinyPlanet.Data
         PlantsTouching,
         [Tooltip("At least one Creature already lives on the planet.")]
         CreatureLivesHere,
+        [Tooltip("Home is in Biome.")]
+        InBiome,
     }
 
     /// <summary>One requirement of a spawn rule, editable in the Inspector. Fields unused by the kind are ignored.</summary>
@@ -34,6 +37,7 @@ namespace TinyPlanet.Data
         public PlantDefinition plant;
         public PlantDefinition otherPlant;
         public CreatureDefinition creature;
+        public BiomeDefinition biome;
         [Min(1)] public int count = 1;
         [Min(0)] public int radius = 1;
 
@@ -46,6 +50,7 @@ namespace TinyPlanet.Data
                 case ConditionKind.PlantsTouching:
                     return new PlantsTouching(plant != null ? plant.id : null, otherPlant != null ? otherPlant.id : null, radius);
                 case ConditionKind.CreatureLivesHere: return new CreatureLivesHere(creature != null ? creature.id : null);
+                case ConditionKind.InBiome: return new InBiome(biome != null ? biome.id : null);
                 default: throw new ArgumentOutOfRangeException();
             }
         }
@@ -67,6 +72,8 @@ namespace TinyPlanet.Data
         [Tooltip("Shown once discovered.")]
         [TextArea] public string description = "";
         [Min(0)] public int discoveryReward = 20;
+        [Tooltip("How much one living here adds to the planet's life, which raises the planet level.")]
+        [Min(0)] public float life = 5f;
 
         [Header("Spawn rule")]
         public SpawnConditionData[] conditions = Array.Empty<SpawnConditionData>();
@@ -102,6 +109,7 @@ namespace TinyPlanet.Data
                 PopulationCap = populationCap,
                 LeaveAfterSeconds = leaveAfterSeconds,
                 DiscoveryReward = discoveryReward,
+                Life = life,
                 Conditions = list,
             };
         }

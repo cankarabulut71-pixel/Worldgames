@@ -17,16 +17,58 @@ MonoBehaviour:
   planetRadius: 5
   startingEnergy: 20
   maxOfflineHours: 24
+  levelLifeThresholds: 0f000000280000005a000000aa0000002c0100000802000052030000i
+  newPlanetLevel: 6
+  newPlanetCosts: 401f000060ea0000801a060080841e00i
+  skyPalettes:
+  - skyCentre: {r: 0.33, g: 0.62, b: 0.62, a: 1}
+    skyEdge: {r: 0.05, g: 0.17, b: 0.2, a: 1}
+    atmosphere: {r: 0.55, g: 0.95, b: 1, a: 1}
+    waterShallow: {r: 0.42, g: 0.88, b: 0.8, a: 1}
+    waterDeep: {r: 0.07, g: 0.46, b: 0.56, a: 1}
+  - skyCentre: {r: 0.46, g: 0.38, b: 0.66, a: 1}
+    skyEdge: {r: 0.09, g: 0.06, b: 0.19, a: 1}
+    atmosphere: {r: 0.8, g: 0.7, b: 1, a: 1}
+    waterShallow: {r: 0.55, g: 0.75, b: 0.95, a: 1}
+    waterDeep: {r: 0.18, g: 0.25, b: 0.55, a: 1}
+  - skyCentre: {r: 0.72, g: 0.52, b: 0.4, a: 1}
+    skyEdge: {r: 0.2, g: 0.09, b: 0.08, a: 1}
+    atmosphere: {r: 1, g: 0.8, b: 0.6, a: 1}
+    waterShallow: {r: 0.45, g: 0.85, b: 0.75, a: 1}
+    waterDeep: {r: 0.1, g: 0.4, b: 0.45, a: 1}
+  - skyCentre: {r: 0.3, g: 0.48, b: 0.76, a: 1}
+    skyEdge: {r: 0.03, g: 0.07, b: 0.19, a: 1}
+    atmosphere: {r: 0.6, g: 0.8, b: 1, a: 1}
+    waterShallow: {r: 0.4, g: 0.75, b: 0.95, a: 1}
+    waterDeep: {r: 0.06, g: 0.28, b: 0.58, a: 1}
+  biomes:
+  - {fileID: 11400000, guid: 9e8cfb89f9c9485438cd9ea36d1652e8, type: 2}
+  - {fileID: 11400000, guid: 5a407e2d34a89754e8fa0a012636612d, type: 2}
+  - {fileID: 11400000, guid: 59a1612499fed8f41a1caedc694cae5c, type: 2}
   plants:
   - {fileID: 11400000, guid: f1918f954cf3b3c4e82040446d099cb3, type: 2}
   - {fileID: 11400000, guid: aac8d9eabd90fa04f90371590693e01f, type: 2}
+  - {fileID: 11400000, guid: a3bd2f54790067a4d96c024e11523ee6, type: 2}
   - {fileID: 11400000, guid: 45db3c6e9d361a24a9577cdb5731627b, type: 2}
+  - {fileID: 11400000, guid: c80b3098e67000d44b1e4fca0f16abe9, type: 2}
+  - {fileID: 11400000, guid: 923cd685ba09e914dbbb0a491aa414bb, type: 2}
+  - {fileID: 11400000, guid: 598f2eb93ad275747b7e0a828db35762, type: 2}
+  - {fileID: 11400000, guid: b620f72ab1d2ce144b82b69f9fe3a432, type: 2}
+  - {fileID: 11400000, guid: 5b9bca29dcd37af4fb091fe650322f82, type: 2}
+  - {fileID: 11400000, guid: 8119e4e84dff75d429eab9a747f3bde9, type: 2}
   creatures:
   - {fileID: 11400000, guid: 9d05ba7378f1b6740a825e18d7de0b64, type: 2}
   - {fileID: 11400000, guid: 1b63b132509308a49b4572b368d2bc58, type: 2}
   - {fileID: 11400000, guid: b15ec4ec4679c6349839acb8b5347dd5, type: 2}
   - {fileID: 11400000, guid: ee55612e63b7c3e42bbfa8b120ed85c9, type: 2}
+  - {fileID: 11400000, guid: 38597d06f3bfb95489eea608db0c7024, type: 2}
+  - {fileID: 11400000, guid: facfc64d27504ac4c96368f632b4c2ec, type: 2}
+  - {fileID: 11400000, guid: 43cb22e5a6e96b74092732c384211ab7, type: 2}
+  - {fileID: 11400000, guid: 8fa9fd85231205c45afa2155e4612703, type: 2}
+  - {fileID: 11400000, guid: 75ec489eaa3bfbb498bd8bebbc41e4b3, type: 2}
+  - {fileID: 11400000, guid: 76072d84107454b439f99153e5b1cc4f, type: 2}
   - {fileID: 11400000, guid: 7ba1f16a7bdac644dbc4c818b9090ae8, type: 2}
+  - {fileID: 11400000, guid: befa90739cff7a746a1b5c3e5941617a, type: 2}
   maxCatchUpChecks: 30
   planetColor: {r: 0.36, g: 0.66, b: 0.3, a: 1}
   cellDotColor: {r: 0.3, g: 0.58, b: 0.25, a: 1}
@@ -34,5 +76,15 @@ MonoBehaviour:
   soilColor: {r: 0.4, g: 0.27, b: 0.16, a: 1}
   woodColor: {r: 0.45, g: 0.3, b: 0.18, a: 1}
   waterColor: {r: 0.24, g: 0.55, b: 0.85, a: 1}
+  sandColor: {r: 0.86, g: 0.78, b: 0.56, a: 1}
+  snowColor: {r: 0.94, g: 0.97, b: 0.99, a: 1}
+  snowLine: 0.5
+  terrainMaterial: {fileID: 2100000, guid: f4ab144fd7fc8674797abd764f6a6a1d, type: 2}
+  waterMaterial: {fileID: 2100000, guid: 9b7fd4ea122808d4ca39cf0c14638ac6, type: 2}
+  atmosphereMaterial: {fileID: 2100000, guid: 7e2a87e74776f1e4fb773e4c69ba4758, type: 2}
+  skyMaterial: {fileID: 2100000, guid: 1c7e0ba6f2735bc4b816499a4df79de9, type: 2}
+  dormantColor: {r: 0.46, g: 0.46, b: 0.48, a: 1}
+  dormantDotColor: {r: 0.4, g: 0.4, b: 0.42, a: 1}
+  dormantWaterColor: {r: 0.36, g: 0.4, b: 0.46, a: 1}
   litMaterial: {fileID: 2100000, guid: 9869d757c0a426d4cb89b0b6abc26072, type: 2}
   unlitMaterial: {fileID: 2100000, guid: 3649cc2fed5262445ac448ddb1b0e379, type: 2}

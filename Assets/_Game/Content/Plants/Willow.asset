@@ -1,0 +1,32 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e00287c47b0988345a0aecb08cb58d5f, type: 3}
+  m_Name: Willow
+  m_EditorClassIdentifier: TinyPlanet.Game::TinyPlanet.Data.PlantDefinition
+  id: willow
+  displayName: Willow
+  seedCost: 90
+  energyPerMinute: 55
+  refundFraction: 0.5
+  life: 6
+  unlockLevel: 4
+  unlockCost: 700
+  seedSeconds: 150
+  sproutSeconds: 360
+  hint: A weeping giant of the wetlands.
+  description: Long, drooping branches that brush the water. A peaceful place to rest.
+  discoveryReward: 20
+  hintNoun: weeping branches
+  shape: 2
+  primaryColor: {r: 0.45, g: 0.7, b: 0.35, a: 1}
+  secondaryColor: {r: 0.62, g: 0.8, b: 0.45, a: 1}
+  matureHeight: 1.4

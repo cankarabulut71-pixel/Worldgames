@@ -5,16 +5,16 @@ using UnityEngine;
 
 namespace TinyPlanet.Presentation
 {
-    /// <summary>Reads and writes the single local save file.</summary>
+    /// <summary>Reads and writes the single local save file, which holds every planet.</summary>
     public static class SaveStore
     {
         private static string FilePath => Path.Combine(Application.persistentDataPath, "save.json");
 
-        public static SaveData Load()
+        public static GameSave Load()
         {
             try
             {
-                return File.Exists(FilePath) ? SaveSerializer.FromJson(File.ReadAllText(FilePath)) : null;
+                return File.Exists(FilePath) ? SaveSerializer.GameFromJson(File.ReadAllText(FilePath)) : null;
             }
             catch (Exception exception)
             {
@@ -23,7 +23,7 @@ namespace TinyPlanet.Presentation
             }
         }
 
-        public static void Write(SaveData data)
+        public static void Write(GameSave data)
         {
             try
             {
