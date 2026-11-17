@@ -1,0 +1,30 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 71c310225d497e941a3d0448f21316c8, type: 3}
+  m_Name: GameConfig
+  m_EditorClassIdentifier: TinyPlanet.Game::TinyPlanet.Data.GameConfig
+  defaultSeed: 12345
+  cellCount: 500
+  planetRadius: 5
+  startingEnergy: 20
+  maxOfflineHours: 24
+  plants:
+  - {fileID: 11400000, guid: f1918f954cf3b3c4e82040446d099cb3, type: 2}
+  - {fileID: 11400000, guid: aac8d9eabd90fa04f90371590693e01f, type: 2}
+  - {fileID: 11400000, guid: 45db3c6e9d361a24a9577cdb5731627b, type: 2}
+  planetColor: {r: 0.36, g: 0.66, b: 0.3, a: 1}
+  cellDotColor: {r: 0.3, g: 0.58, b: 0.25, a: 1}
+  spaceColor: {r: 0.03, g: 0.04, b: 0.1, a: 1}
+  soilColor: {r: 0.4, g: 0.27, b: 0.16, a: 1}
+  woodColor: {r: 0.45, g: 0.3, b: 0.18, a: 1}
+  litMaterial: {fileID: 2100000, guid: 9869d757c0a426d4cb89b0b6abc26072, type: 2}
+  unlitMaterial: {fileID: 2100000, guid: 3649cc2fed5262445ac448ddb1b0e379, type: 2}

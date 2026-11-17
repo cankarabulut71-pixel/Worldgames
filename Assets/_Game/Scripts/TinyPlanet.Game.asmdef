@@ -1,0 +1,11 @@
+{
+    "name": "TinyPlanet.Game",
+    "rootNamespace": "TinyPlanet",
+    "references": [
+        "TinyPlanet.Simulation",
+        "Unity.InputSystem",
+        "Unity.TextMeshPro",
+        "UnityEngine.UI"
+    ],
+    "autoReferenced": true
+}

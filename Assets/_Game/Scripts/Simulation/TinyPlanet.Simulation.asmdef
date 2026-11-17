@@ -1,0 +1,6 @@
+{
+    "name": "TinyPlanet.Simulation",
+    "rootNamespace": "TinyPlanet.Simulation",
+    "references": [],
+    "autoReferenced": true
+}

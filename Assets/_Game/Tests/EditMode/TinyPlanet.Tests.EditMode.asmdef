@@ -1,0 +1,20 @@
+{
+    "name": "TinyPlanet.Tests.EditMode",
+    "rootNamespace": "TinyPlanet.Tests",
+    "references": [
+        "TinyPlanet.Simulation",
+        "UnityEngine.TestRunner",
+        "UnityEditor.TestRunner"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "nunit.framework.dll"
+    ],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "UNITY_INCLUDE_TESTS"
+    ]
+}
