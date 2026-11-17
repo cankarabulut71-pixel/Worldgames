@@ -15,7 +15,7 @@ MonoBehaviour:
   id: moss
   displayName: Moss
   seedCost: 15
-  energyPerMinute: 9
+  energyPerMinute: 3
   refundFraction: 0.5
   life: 2
   unlockLevel: 5

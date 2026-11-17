@@ -15,7 +15,7 @@ MonoBehaviour:
   id: pine
   displayName: Pine
   seedCost: 140
-  energyPerMinute: 80
+  energyPerMinute: 26
   refundFraction: 0.5
   life: 7
   unlockLevel: 6

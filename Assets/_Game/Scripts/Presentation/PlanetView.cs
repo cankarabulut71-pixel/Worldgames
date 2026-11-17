@@ -115,6 +115,16 @@ namespace TinyPlanet.Presentation
             return true;
         }
 
+        /// <summary>World position of a cell's centre on the ground.</summary>
+        public Vector3 CellPoint(int cell) =>
+            transform.TransformPoint(simulation.Planet.Grid.Direction(cell) * Terrain.CellSurface(cell));
+
+        /// <summary>World direction straight up from a cell.</summary>
+        public Vector3 CellNormal(int cell) => transform.TransformDirection(simulation.Planet.Grid.Direction(cell));
+
+        /// <summary>Roughly how wide one cell is on the ground, in world units.</summary>
+        public float CellSize => Mathf.Sqrt(4f * Mathf.PI / simulation.Planet.Grid.CellCount) * Radius;
+
         /// <summary>The average direction of a biome's cells: roughly the middle of its region.</summary>
         public Vector3 BiomeCentre(int biome)
         {

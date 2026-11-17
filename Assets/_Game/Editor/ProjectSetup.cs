@@ -61,15 +61,19 @@ namespace TinyPlanet.EditorTools
                 config.waterMaterial = LoadOrCreateMaterial(MaterialsFolder + "/Water.mat", "TinyPlanet/Water");
                 config.atmosphereMaterial = LoadOrCreateMaterial(MaterialsFolder + "/Atmosphere.mat", "TinyPlanet/Atmosphere");
                 config.skyMaterial = LoadOrCreateMaterial(MaterialsFolder + "/SpaceSky.mat", "TinyPlanet/SpaceSky");
+                config.particleMaterial = LoadOrCreateMaterial(MaterialsFolder + "/Particle.mat", "TinyPlanet/Particle");
 
                 config.plants = CreatePlants();
                 config.biomes = CreateBiomes(config.plants);
                 config.creatures = CreateCreatures(config.plants, config.biomes);
                 AddHintNouns(config);
-                if (overwrite) config.levelLifeThresholds = new[] { 15, 40, 90, 170, 300, 520, 850 };
+                // Tuned with Tiny Planet/Balance Report: the last level arrives after about 50 minutes of play.
+                if (overwrite) config.levelLifeThresholds = new[] { 30, 80, 180, 280, 560, 880, 1300 };
 
                 EditorUtility.SetDirty(config);
                 AssetDatabase.SaveAssets();
+
+                SetUpFont();
 
                 if (!File.Exists(ScenePath)) CreateScene();
 
@@ -106,50 +110,60 @@ namespace TinyPlanet.EditorTools
             return new[]
             {
                 // Meadow
-                Plant("Grass", "grass", "Grass", PlantShape.Grass, 2, 2f, 8f, 15f, 1f, 1, 0, 5,
+                Plant("Grass", "grass", "Grass", PlantShape.Grass, 2, 0.7f, 8f, 15f, 1f, 1, 0, 5,
                     new Color(0.55f, 0.85f, 0.30f), Color.white, 0.6f,
                     "The humblest seed. Try a few side by side.",
                     "Soft tufts that spread a cosy carpet. Small things love to hide in it."),
-                Plant("Flower", "flower", "Flower", PlantShape.Flower, 10, 8f, 30f, 60f, 2f, 1, 0, 5,
+                Plant("Flower", "flower", "Flower", PlantShape.Flower, 10, 3f, 30f, 60f, 2f, 1, 0, 5,
                     new Color(0.25f, 0.62f, 0.25f), new Color(0.98f, 0.45f, 0.70f), 0.85f,
                     "A splash of colour. Who might it attract?",
                     "Bright blossoms full of sweet nectar. Lovely in little clusters."),
-                Plant("Berrybush", "berrybush", "Berrybush", PlantShape.Bush, 25, 14f, 45f, 120f, 3f, 2, 60, 10,
+                Plant("Berrybush", "berrybush", "Berrybush", PlantShape.Bush, 25, 5f, 45f, 120f, 3f, 2, 60, 10,
                     new Color(0.20f, 0.52f, 0.26f), new Color(0.86f, 0.16f, 0.36f), 0.7f,
                     "Sweet things hang from its branches.",
                     "A round, friendly shrub heavy with berries. Something small is always nibbling at it."),
-                Plant("Tree", "tree", "Tree", PlantShape.Tree, 40, 30f, 120f, 300f, 5f, 2, 120, 15,
+                Plant("Tree", "tree", "Tree", PlantShape.Tree, 40, 10f, 120f, 300f, 5f, 2, 120, 15,
                     new Color(0.13f, 0.50f, 0.22f), new Color(0.22f, 0.62f, 0.28f), 1.3f,
                     "Slow to grow, but worth the wait.",
                     "A sturdy old friend. Its branches make a home for many."),
 
                 // Wetland
-                Plant("Reed", "reed", "Reed", PlantShape.Reed, 8, 5f, 20f, 40f, 1f, 3, 40, 10,
+                Plant("Reed", "reed", "Reed", PlantShape.Reed, 8, 2f, 20f, 40f, 1f, 3, 40, 10,
                     new Color(0.55f, 0.66f, 0.30f), new Color(0.45f, 0.30f, 0.18f), 0.95f,
                     "Loves wet feet.",
                     "Tall, whispering stalks that sway at the water's edge."),
-                Plant("Bogbloom", "bogbloom", "Bogbloom", PlantShape.Flower, 30, 18f, 60f, 120f, 3f, 4, 200, 15,
+                Plant("Bogbloom", "bogbloom", "Bogbloom", PlantShape.Flower, 30, 6f, 60f, 120f, 3f, 4, 200, 15,
                     new Color(0.20f, 0.50f, 0.40f), new Color(0.45f, 0.58f, 1f), 0.8f,
                     "A blue blossom of the marsh.",
                     "Cool blue petals that open wide on damp ground. They shimmer faintly at dusk."),
-                Plant("Willow", "willow", "Willow", PlantShape.Tree, 90, 55f, 150f, 360f, 6f, 4, 700, 20,
+                Plant("Willow", "willow", "Willow", PlantShape.Tree, 90, 18f, 150f, 360f, 6f, 4, 700, 20,
                     new Color(0.45f, 0.70f, 0.35f), new Color(0.62f, 0.80f, 0.45f), 1.4f,
                     "A weeping giant of the wetlands.",
                     "Long, drooping branches that brush the water. A peaceful place to rest."),
-                Plant("Moss", "moss", "Moss", PlantShape.Moss, 15, 9f, 30f, 60f, 2f, 5, 600, 15,
+                Plant("Moss", "moss", "Moss", PlantShape.Moss, 15, 3f, 30f, 60f, 2f, 5, 600, 15,
                     new Color(0.35f, 0.55f, 0.30f), new Color(0.50f, 0.68f, 0.35f), 0.3f,
                     "Soft and patient. It grows where little else will.",
                     "A springy green cushion. It is happy on bare stone and damp ground alike."),
 
                 // Rocky
-                Plant("Pine", "pine", "Pine", PlantShape.Pine, 140, 80f, 180f, 420f, 7f, 6, 3500, 25,
+                Plant("Pine", "pine", "Pine", PlantShape.Pine, 140, 26f, 180f, 420f, 7f, 6, 3500, 25,
                     new Color(0.10f, 0.38f, 0.25f), new Color(0.15f, 0.46f, 0.30f), 1.6f,
                     "Hardy and evergreen, it climbs the rocks.",
                     "A tall, tough tree that thrives among the stones. It smells of cold air."),
-                Plant("Crystalbloom", "crystalbloom", "Crystalbloom", PlantShape.Crystal, 250, 130f, 240f, 600f, 10f, 7, 9000, 40,
+                Plant("Crystalbloom", "crystalbloom", "Crystalbloom", PlantShape.Crystal, 250, 42f, 240f, 600f, 10f, 7, 9000, 40,
                     new Color(0.55f, 0.85f, 0.95f), new Color(0.85f, 0.62f, 1f), 0.9f,
                     "Something gleams deep in the stone.",
                     "A strange bloom of living crystal. Nobody knows quite how it grows."),
+
+                // Ancient: they take days, a reason to come back tomorrow. Rain hurries them along.
+                Plant("AncientOak", "ancientoak", "Ancient Oak", PlantShape.Tree, 120, 25f, 6f * 3600f, 18f * 3600f, 20f, 4, 400, 60,
+                    new Color(0.70f, 0.45f, 0.15f), new Color(0.88f, 0.64f, 0.22f), 2.1f,
+                    "Plant it today, and greet it tomorrow.",
+                    "An oak older than the planet's memory. It takes a whole day to grow and stands golden ever after."),
+                Plant("AncientCedar", "ancientcedar", "Ancient Cedar", PlantShape.Pine, 300, 60f, 18f * 3600f, 54f * 3600f, 50f, 6, 2500, 120,
+                    new Color(0.08f, 0.30f, 0.30f), new Color(0.14f, 0.40f, 0.38f), 2.4f,
+                    "Patience. Three days, and the mountain gains a giant.",
+                    "A towering blue-green cedar that takes three days to rise. Its roots hold the stones together."),
             };
         }
 
@@ -165,7 +179,7 @@ namespace TinyPlanet.EditorTools
                 b.id = "meadow"; b.displayName = "Meadow";
                 b.description = "Gentle green hills. Where every planet begins.";
                 b.weight = 1.1f; b.waterFraction = 0f; b.baseMoisture = 0.5f; b.baseFertility = 0.6f;
-                b.plants = Plants("grass", "flower", "berrybush", "tree");
+                b.plants = Plants("grass", "flower", "berrybush", "tree", "ancientoak");
                 b.unlockLevel = 1; b.unlockCost = 0;
                 b.groundColor = new Color(0.40f, 0.70f, 0.26f); b.dotColor = new Color(0.30f, 0.58f, 0.25f);
                 b.decorationColor = Color.clear; b.decorationDensity = 0f;
@@ -180,7 +194,7 @@ namespace TinyPlanet.EditorTools
                 b.description = "Ponds, reeds and soft mud. Life loves the water.";
                 b.weight = 1f; b.waterFraction = 0.25f; b.baseMoisture = 0.85f; b.baseFertility = 0.5f;
                 b.plants = Plants("grass", "flower", "reed", "bogbloom", "willow", "moss");
-                b.unlockLevel = 3; b.unlockCost = 400;
+                b.unlockLevel = 3; b.unlockCost = 250;
                 b.groundColor = new Color(0.33f, 0.60f, 0.36f); b.dotColor = new Color(0.22f, 0.45f, 0.36f);
                 b.decorationColor = Color.clear; b.decorationDensity = 0f;
                 b.baseHeight = 0.05f; b.hilliness = 0.04f;
@@ -193,7 +207,7 @@ namespace TinyPlanet.EditorTools
                 b.id = "rocky"; b.displayName = "Rocky";
                 b.description = "Bare stone and thin air. Only the hardiest things grow here.";
                 b.weight = 0.9f; b.waterFraction = 0f; b.baseMoisture = 0.2f; b.baseFertility = 0.3f;
-                b.plants = Plants("moss", "pine", "crystalbloom");
+                b.plants = Plants("moss", "pine", "crystalbloom", "ancientcedar");
                 b.unlockLevel = 5; b.unlockCost = 3000;
                 b.groundColor = new Color(0.50f, 0.51f, 0.53f); b.dotColor = new Color(0.52f, 0.46f, 0.38f);
                 b.decorationColor = new Color(0.52f, 0.50f, 0.48f); b.decorationDensity = 0.45f;
@@ -202,7 +216,18 @@ namespace TinyPlanet.EditorTools
                 b.coverColor = new Color(0.14f, 0.42f, 0.28f); b.coverAccent = new Color(0.22f, 0.52f, 0.32f);
             });
 
+            // Lands made before a plant existed learn to grow it without a reset.
+            AddPlant(meadow, Plants("ancientoak")[0]);
+            AddPlant(rocky, Plants("ancientcedar")[0]);
             return new[] { meadow, wetland, rocky };
+        }
+
+        private static void AddPlant(BiomeDefinition biome, PlantDefinition plant)
+        {
+            if (biome == null || plant == null || Array.IndexOf(biome.plants, plant) >= 0) return;
+            var list = new System.Collections.Generic.List<PlantDefinition>(biome.plants) { plant };
+            biome.plants = list.ToArray();
+            EditorUtility.SetDirty(biome);
         }
 
         // Phrases used in generated hints for planet-only creatures. Filled in when empty or when resetting.
@@ -213,7 +238,7 @@ namespace TinyPlanet.EditorTools
                 { "grass", "thick grass" }, { "flower", "a bright blossom" }, { "berrybush", "heavy berries" },
                 { "tree", "old wood" }, { "reed", "whispering reeds" }, { "bogbloom", "blue petals" },
                 { "willow", "weeping branches" }, { "moss", "soft moss" }, { "pine", "evergreen needles" },
-                { "crystalbloom", "gleaming crystal" },
+                { "crystalbloom", "gleaming crystal" }, { "ancientoak", "golden boughs" }, { "ancientcedar", "giant needles" },
             };
             foreach (var plant in config.plants)
             {
@@ -257,6 +282,8 @@ namespace TinyPlanet.EditorTools
             {
                 kind = ConditionKind.CreatureLivesHere, creature = creature,
             };
+            SpawnConditionData Night() => new SpawnConditionData { kind = ConditionKind.AtNight };
+            SpawnConditionData Rain() => new SpawnConditionData { kind = ConditionKind.InRain };
 
             CreatureDefinition Creature(string file, string id, string name, Rarity rarity, string hint, string description,
                 Func<SpawnConditionData[]> conditions, float interval, float chance, int cap,
@@ -348,7 +375,33 @@ namespace TinyPlanet.EditorTools
                 () => new[] { Nearby("crystalbloom", 1, 1), Nearby("willow", 1, 2), Nearby("tree", 1, 2) }, 20f, 0.2f, 1,
                 CreatureShape.Hopper, new Color(0.96f, 0.93f, 0.82f), new Color(0.98f, 0.80f, 0.35f), 1.5f, 0.6f, 2);
 
-            return new[] { hopper, petalwing, newt, barkbit, skipper, snail, mouse, cragtail, wisp, bug, moth, starhorn };
+            // Creatures of the night and the rain.
+            var moonmoth = Creature("Moonmoth", "moonmoth", "Moonmoth", Rarity.Uncommon,
+                "Only flutters out after dark, to blossoms in company.",
+                "A silver moth that sleeps through the day. At night it visits flowers that grow together.",
+                () => new[] { Night(), Nearby("flower", 2, 1) }, 12f, 0.3f, 2,
+                CreatureShape.Flutter, new Color(0.80f, 0.85f, 1f), new Color(0.35f, 0.38f, 0.70f), 1f, 0.8f, 2);
+
+            var hollowkit = Creature("Hollowkit", "hollowkit", "Hollowkit", Rarity.Rare,
+                "Sleeps all day in the oldest of trees.",
+                "A wide-eyed climber that lives in the hollows of ancient oaks and only comes out once the stars do.",
+                () => new[] { Night(), Nearby("ancientoak", 1, 0) }, 15f, 0.25f, 1,
+                CreatureShape.Climber, new Color(0.35f, 0.30f, 0.45f), new Color(0.95f, 0.85f, 0.55f), 1.1f, 0.7f, 1);
+
+            var puddlehop = Creature("Puddlehop", "puddlehop", "Puddlehop", Rarity.Common,
+                "Comes out to splash when the sky turns grey.",
+                "A plump little hopper with waterproof fur. Rain is its favourite weather, puddles its favourite place.",
+                () => new[] { Rain(), Water(1), Nearby("grass", 2, 1) }, 10f, 0.3f, 3,
+                CreatureShape.Hopper, new Color(0.45f, 0.62f, 0.78f), new Color(0.92f, 0.95f, 0.98f), 0.9f, 0.8f, 2);
+
+            var drizzlewing = Creature("Drizzlewing", "drizzlewing", "Drizzlewing", Rarity.Uncommon,
+                "Dances above the reeds, but only in the rain.",
+                "Its wings shimmer like wet glass. It is never seen on a dry day.",
+                () => new[] { Rain(), Nearby("reed", 2, 1) }, 12f, 0.3f, 2,
+                CreatureShape.Flutter, new Color(0.55f, 0.85f, 0.75f), new Color(0.20f, 0.35f, 0.40f), 0.9f, 1f, 2);
+
+            return new[] { hopper, petalwing, newt, barkbit, skipper, snail, mouse, cragtail, wisp, bug, moth, starhorn,
+                moonmoth, hollowkit, puddlehop, drizzlewing };
         }
 
         // ---------- scene and helpers ----------
@@ -382,6 +435,42 @@ namespace TinyPlanet.EditorTools
             serialized.ApplyModifiedPropertiesWithoutUndo();
 
             EditorSceneManager.SaveScene(scene, ScenePath);
+        }
+
+        // ---------- font ----------
+
+        private const string FontPath = Root + "/Fonts/Nunito-Bold.ttf";
+        private const string FontAssetPath = Root + "/Fonts/Nunito-Bold SDF.asset";
+
+        // Nunito (SIL Open Font License, see Fonts/Nunito-OFL.txt) becomes the default font for all UI text.
+        // The atlas fills in on demand, so any character the font has can be shown.
+        private static void SetUpFont()
+        {
+            var fontAsset = AssetDatabase.LoadAssetAtPath<TMPro.TMP_FontAsset>(FontAssetPath);
+            if (fontAsset == null)
+            {
+                var font = AssetDatabase.LoadAssetAtPath<Font>(FontPath);
+                if (font == null) return;
+                fontAsset = TMPro.TMP_FontAsset.CreateFontAsset(font, 72, 8, UnityEngine.TextCore.LowLevel.GlyphRenderMode.SDFAA,
+                    1024, 1024, TMPro.AtlasPopulationMode.Dynamic);
+                fontAsset.name = "Nunito-Bold SDF";
+                AssetDatabase.CreateAsset(fontAsset, FontAssetPath);
+                fontAsset.atlasTextures[0].name = "Nunito-Bold Atlas";
+                fontAsset.material.name = "Nunito-Bold Material";
+                AssetDatabase.AddObjectToAsset(fontAsset.atlasTextures[0], fontAsset);
+                AssetDatabase.AddObjectToAsset(fontAsset.material, fontAsset);
+            }
+            // Characters Nunito lacks still come from the font TextMeshPro ships with.
+            if (fontAsset.fallbackFontAssetTable == null) fontAsset.fallbackFontAssetTable = new System.Collections.Generic.List<TMPro.TMP_FontAsset>();
+            var fallback = TMPro.TMP_Settings.defaultFontAsset;
+            if (fallback != null && fallback != fontAsset && !fontAsset.fallbackFontAssetTable.Contains(fallback))
+                fontAsset.fallbackFontAssetTable.Add(fallback);
+            EditorUtility.SetDirty(fontAsset);
+
+            var settings = new SerializedObject(TMPro.TMP_Settings.instance);
+            settings.FindProperty("m_defaultFontAsset").objectReferenceValue = fontAsset;
+            settings.ApplyModifiedPropertiesWithoutUndo();
+            EditorUtility.SetDirty(TMPro.TMP_Settings.instance);
         }
 
         private static Material LoadOrCreateMaterial(string path, string shaderName)

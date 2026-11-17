@@ -15,7 +15,7 @@ MonoBehaviour:
   id: tree
   displayName: Tree
   seedCost: 40
-  energyPerMinute: 30
+  energyPerMinute: 10
   refundFraction: 0.5
   life: 5
   unlockLevel: 2

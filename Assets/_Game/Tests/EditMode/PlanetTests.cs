@@ -191,6 +191,25 @@ namespace TinyPlanet.Tests
         }
 
         [Test]
+        public void CanPlant_PredictsTryPlant_WithoutChangingAnything()
+        {
+            var clock = new ManualClock();
+            var planet = PlanetGenerator.Generate(5, 300);
+            var plants = new[] { new PlantSpec { Id = "grass", SeedCost = 10, SeedSeconds = 1, SproutSeconds = 1 } };
+            var sim = new PlanetSimulation(planet, plants, null, new EconomySettings { StartingEnergy = 15 }, clock, null);
+            var land = Enumerable.Range(0, planet.Grid.CellCount).Where(c => !planet.IsWater(c)).Take(2).ToList();
+
+            Assert.AreEqual(PlantResult.Ok, sim.CanPlant(land[0], "grass"));
+            Assert.AreEqual(15, sim.Energy, 1e-9);
+            Assert.AreEqual(0, sim.Plants.Count);
+
+            Assert.AreEqual(PlantResult.Ok, sim.TryPlant(land[0], "grass"));
+            Assert.AreEqual(PlantResult.CellOccupied, sim.CanPlant(land[0], "grass"));
+            Assert.AreEqual(PlantResult.NotEnoughEnergy, sim.CanPlant(land[1], "grass"));
+            Assert.AreEqual(PlantResult.UnknownPlant, sim.CanPlant(land[1], "nothing"));
+        }
+
+        [Test]
         public void UnvisitedPlanet_StartsFresh()
         {
             var clock = new ManualClock();

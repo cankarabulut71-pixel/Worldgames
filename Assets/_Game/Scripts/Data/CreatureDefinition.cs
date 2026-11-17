@@ -27,6 +27,10 @@ namespace TinyPlanet.Data
         CreatureLivesHere,
         [Tooltip("Home is in Biome.")]
         InBiome,
+        [Tooltip("Only at night, by the player's own clock.")]
+        AtNight,
+        [Tooltip("Only while it rains.")]
+        InRain,
     }
 
     /// <summary>One requirement of a spawn rule, editable in the Inspector. Fields unused by the kind are ignored.</summary>
@@ -51,6 +55,8 @@ namespace TinyPlanet.Data
                     return new PlantsTouching(plant != null ? plant.id : null, otherPlant != null ? otherPlant.id : null, radius);
                 case ConditionKind.CreatureLivesHere: return new CreatureLivesHere(creature != null ? creature.id : null);
                 case ConditionKind.InBiome: return new InBiome(biome != null ? biome.id : null);
+                case ConditionKind.AtNight: return new AtNight();
+                case ConditionKind.InRain: return new InRain();
                 default: throw new ArgumentOutOfRangeException();
             }
         }

@@ -15,7 +15,7 @@ MonoBehaviour:
   id: grass
   displayName: Grass
   seedCost: 2
-  energyPerMinute: 2
+  energyPerMinute: 0.7
   refundFraction: 0.5
   life: 1
   unlockLevel: 1

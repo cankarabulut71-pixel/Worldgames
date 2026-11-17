@@ -16,6 +16,28 @@ namespace TinyPlanet.UI
 
         public const string WaterHere = "That's water - plant on land";
 
+        public const string GoldenNameFormat = "Golden {0}";
+        public const string NewGolden = "A golden one!";
+        public const string GoldenCountFormat = "Golden {0}/{1}";
+        public const string GoldenSeen = "A golden one has been seen";
+
+        public const string AwayTitle = "While you were away";
+        public const string AwayEnergyFormat = "+{0} energy";
+        public const string AwayGrownFormat = "{0} plants finished growing";
+        public const string AwayGrownOne = "1 plant finished growing";
+        public const string AwayArrivedFormat = "{0} arrived";
+        public const string AwayArrivedManyFormat = "{0} x{1} arrived";
+        public const string AwayNothing = "The planet rested quietly.";
+        public const string AwayRaining = "It's raining - plants grow faster today";
+        public const string AwayOk = "Lovely!";
+
+        public const string DebugNight = "Night";
+        public const string DebugRain = "Rain";
+
+        // The only two hints: how to start, and what plants are for.
+        public const string HintPlant = "Tap the ground to plant a seed";
+        public const string HintAttract = "Grown plants draw in creatures - try a few side by side";
+
         public const string PlanetsTitle = "Planets";
         public const string PlanetsSubtitle = "Each world has its own lands, life and secrets";
         public const string PlanetHere = "You're here";

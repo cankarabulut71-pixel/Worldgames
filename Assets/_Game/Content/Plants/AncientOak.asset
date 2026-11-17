@@ -1,0 +1,32 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e00287c47b0988345a0aecb08cb58d5f, type: 3}
+  m_Name: AncientOak
+  m_EditorClassIdentifier: TinyPlanet.Game::TinyPlanet.Data.PlantDefinition
+  id: ancientoak
+  displayName: Ancient Oak
+  seedCost: 120
+  energyPerMinute: 25
+  refundFraction: 0.5
+  life: 20
+  unlockLevel: 4
+  unlockCost: 400
+  seedSeconds: 21600
+  sproutSeconds: 64800
+  hint: Plant it today, and greet it tomorrow.
+  description: An oak older than the planet's memory. It takes a whole day to grow and stands golden ever after.
+  discoveryReward: 60
+  hintNoun: golden boughs
+  shape: 2
+  primaryColor: {r: 0.7, g: 0.45, b: 0.15, a: 1}
+  secondaryColor: {r: 0.88, g: 0.64, b: 0.22, a: 1}
+  matureHeight: 2.1

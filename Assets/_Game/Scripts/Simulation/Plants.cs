@@ -37,14 +37,27 @@ namespace TinyPlanet.Simulation
         public double SecondsToMature => (double)SeedSeconds + SproutSeconds;
     }
 
-    /// <summary>One planted plant. Its stage is always derived from when it was planted.</summary>
+    /// <summary>
+    /// One planted plant. Its stage is always derived from when it was planted; the sky's forecast (rain makes
+    /// plants grow faster) fixes when it sprouts and matures the moment it is planted.
+    /// </summary>
     public sealed class PlantInstance
     {
-        public PlantInstance(PlantSpec spec, int cell, long plantedAtUtcTicks)
+        public PlantInstance(PlantSpec spec, int cell, long plantedAtUtcTicks, Sky sky = null)
         {
             Spec = spec;
             Cell = cell;
             PlantedAtUtcTicks = plantedAtUtcTicks;
+            if (sky == null)
+            {
+                SproutAtUtcTicks = plantedAtUtcTicks + (long)(spec.SeedSeconds * (double)TimeSpan.TicksPerSecond);
+                MatureAtUtcTicks = plantedAtUtcTicks + (long)(spec.SecondsToMature * TimeSpan.TicksPerSecond);
+            }
+            else
+            {
+                SproutAtUtcTicks = sky.AfterGrowth(plantedAtUtcTicks, spec.SeedSeconds);
+                MatureAtUtcTicks = sky.AfterGrowth(plantedAtUtcTicks, spec.SecondsToMature);
+            }
         }
 
         public PlantSpec Spec { get; }
@@ -54,9 +67,14 @@ namespace TinyPlanet.Simulation
         /// <summary>Last stage reported through events; used to detect stage changes.</summary>
         internal PlantStage ReportedStage;
 
-        public PlantStage StageAt(long nowUtcTicks) => Growth.StageAt(Spec, PlantedAtUtcTicks, nowUtcTicks);
+        public long SproutAtUtcTicks { get; }
+        public long MatureAtUtcTicks { get; }
 
-        public long MatureAtUtcTicks => PlantedAtUtcTicks + (long)(Spec.SecondsToMature * TimeSpan.TicksPerSecond);
+        public PlantStage StageAt(long nowUtcTicks) =>
+            nowUtcTicks < SproutAtUtcTicks ? PlantStage.Seed : nowUtcTicks < MatureAtUtcTicks ? PlantStage.Sprout : PlantStage.Mature;
+
+        /// <summary>Seconds until the plant is mature; zero once it is.</summary>
+        public double SecondsUntilMature(long nowUtcTicks) => Math.Max(0.0, (MatureAtUtcTicks - nowUtcTicks) / (double)TimeSpan.TicksPerSecond);
     }
 
     public static class Growth

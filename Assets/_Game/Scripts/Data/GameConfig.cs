@@ -34,6 +34,17 @@ namespace TinyPlanet.Data
         [Min(0)] public float startingEnergy = 20f;
         [Min(0)] public float maxOfflineHours = 24f;
 
+        [Header("Day and weather")]
+        [Tooltip("Local hour when night falls on the planet, and when day returns.")]
+        [Range(0f, 24f)] public float nightStartHour = 20f;
+        [Range(0f, 24f)] public float dayStartHour = 6f;
+        [Tooltip("Chance that a whole day is rainy.")]
+        [Range(0f, 1f)] public float rainChance = 0.25f;
+        [Tooltip("How much faster plants grow while it rains.")]
+        [Min(1f)] public float rainGrowthMultiplier = 1.5f;
+        [Tooltip("Chance that an arriving creature wears rare golden colours.")]
+        [Range(0f, 1f)] public float goldenChance = 0.03f;
+
         [Header("Progression")]
         [Tooltip("Life needed to reach level 2, 3, 4 and so on. The planet starts at level 1.")]
         public int[] levelLifeThresholds = { 15, 40, 90, 170, 300, 520, 850 };
@@ -76,6 +87,8 @@ namespace TinyPlanet.Data
         public Material waterMaterial;
         public Material atmosphereMaterial;
         public Material skyMaterial;
+        [Tooltip("Sparkles, puffs and rings for effects and the placement marker.")]
+        public Material particleMaterial;
 
         [Tooltip("Land that has not been woken yet.")]
         public Color dormantColor = new Color(0.46f, 0.46f, 0.48f);

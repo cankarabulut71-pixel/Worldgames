@@ -40,6 +40,7 @@ namespace TinyPlanet.UI
             public RawImage Icon;
             public TMP_Text Name;
             public TMP_Text Sub;
+            public GameObject GoldBadge;
         }
 
         private readonly List<Card> cards = new List<Card>();
@@ -76,7 +77,7 @@ namespace TinyPlanet.UI
             this.simulation = simulation;
             this.iconFor = iconFor;
 
-            root = Panel("Codex", parent, Backdrop);
+            root = Panel("Codex", parent, Backdrop, 0f);
             BuildHeader();
             var content = BuildScroll();
             BuildSection(content, Strings.CodexPlants, entries, creatures: false);
@@ -85,6 +86,19 @@ namespace TinyPlanet.UI
 
             if (cards.Count > 0) Select(cards[0].Entry);
             root.gameObject.SetActive(false);
+        }
+
+        /// <summary>Creature species seen in golden colours, out of all creature species here.</summary>
+        public (int found, int total) GoldenProgress()
+        {
+            int found = 0, total = 0;
+            foreach (var card in cards)
+            {
+                if (!card.Entry.IsCreature) continue;
+                total++;
+                if (simulation.IsGoldenFound(card.Entry.Id)) found++;
+            }
+            return (found, total);
         }
 
         public (int found, int total) Progress()
@@ -114,7 +128,9 @@ namespace TinyPlanet.UI
 
             var (found, total) = Progress();
             int percent = total > 0 ? Mathf.RoundToInt(100f * found / total) : 0;
-            progressLabel.text = string.Format(Strings.CodexProgressFormat, found, total, percent);
+            var (golden, creatures) = GoldenProgress();
+            progressLabel.text = string.Format(Strings.CodexProgressFormat, found, total, percent)
+                + "   <color=#FFC838>" + string.Format(Strings.GoldenCountFormat, golden, creatures) + "</color>";
             if (overall != null)
             {
                 var (allFound, allTotal) = overall();
@@ -131,6 +147,7 @@ namespace TinyPlanet.UI
                 card.Sub.text = card.Entry.IsCreature ? Strings.Rarity(card.Entry.Rarity) : card.Entry.Where ?? Strings.Plant;
                 card.Sub.color = card.Entry.IsCreature ? RarityColor(card.Entry.Rarity) : new Color(1f, 1f, 1f, 0.6f);
                 card.Frame.color = card.Entry == selected ? SelectedColor : CardColor;
+                if (card.GoldBadge != null) card.GoldBadge.SetActive(simulation.IsGoldenFound(card.Entry.Id));
             }
 
             ShowDetail();
@@ -159,7 +176,10 @@ namespace TinyPlanet.UI
             if (!known)
                 detailStatus.text = Strings.NotFoundYet;
             else if (selected.IsCreature)
+            {
                 detailStatus.text = string.Format(Strings.LivingHereFormat, simulation.CountCreatures(selected.Id));
+                if (simulation.IsGoldenFound(selected.Id)) detailStatus.text += "   <color=#FFC838>" + Strings.GoldenSeen + "</color>";
+            }
             else
                 detailStatus.text = string.Format(Strings.GrowingHereFormat, simulation.CountPlants(selected.Id));
         }
@@ -264,12 +284,25 @@ namespace TinyPlanet.UI
             sub.rectTransform.anchoredPosition = new Vector2(0f, 12f);
             sub.rectTransform.sizeDelta = new Vector2(-16f, 34f);
 
+            GameObject badge = null;
+            if (entry.IsCreature)
+            {
+                // A gold dot in the corner once a golden one of this species has been seen.
+                var dot = Circle("Golden", inner, new Color(1f, 0.78f, 0.22f));
+                Anchor(dot.rectTransform, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(1f, 1f));
+                dot.rectTransform.anchoredPosition = new Vector2(-14f, -14f);
+                dot.rectTransform.sizeDelta = new Vector2(34f, 34f);
+                dot.raycastTarget = false;
+                badge = dot.gameObject;
+                badge.SetActive(false);
+            }
+
             var button = frame.gameObject.AddComponent<Button>();
             button.targetGraphic = frame.GetComponent<Image>();
             button.transition = Selectable.Transition.None;
             button.onClick.AddListener(() => Select(entry));
 
-            return new Card { Entry = entry, Frame = frame.GetComponent<Image>(), Icon = icon, Name = name, Sub = sub };
+            return new Card { Entry = entry, Frame = frame.GetComponent<Image>(), Icon = icon, Name = name, Sub = sub, GoldBadge = badge };
         }
 
         private void BuildDetail()

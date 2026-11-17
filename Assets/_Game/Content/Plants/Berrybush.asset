@@ -15,7 +15,7 @@ MonoBehaviour:
   id: berrybush
   displayName: Berrybush
   seedCost: 25
-  energyPerMinute: 14
+  energyPerMinute: 5
   refundFraction: 0.5
   life: 3
   unlockLevel: 2

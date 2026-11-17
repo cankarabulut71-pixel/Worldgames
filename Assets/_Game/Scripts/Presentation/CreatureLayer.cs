@@ -9,12 +9,17 @@ namespace TinyPlanet.Presentation
     public sealed class CreatureLayer : MonoBehaviour
     {
         private readonly Dictionary<int, CreatureView> active = new Dictionary<int, CreatureView>();
-        private readonly Dictionary<string, Stack<CreatureView>> pools = new Dictionary<string, Stack<CreatureView>>();
+        private readonly Dictionary<CreatureDefinition, Stack<CreatureView>> pools = new Dictionary<CreatureDefinition, Stack<CreatureView>>();
+        private readonly List<CreatureView> golden = new List<CreatureView>();
+        private float glintTimer;
         private readonly Dictionary<string, CreatureDefinition> definitions = new Dictionary<string, CreatureDefinition>();
 
         private PlanetSimulation simulation;
         private MaterialLibrary materials;
         private TerrainShape terrain;
+
+        /// <summary>Where golden creatures get their sparkle from.</summary>
+        public Effects Effects { get; set; }
 
         public void Init(PlanetSimulation simulation, IEnumerable<CreatureDefinition> creatures, MaterialLibrary materials, TerrainShape terrain)
         {
@@ -82,18 +87,20 @@ namespace TinyPlanet.Presentation
         {
             if (!active.TryGetValue(creature.Id, out var view)) return;
             active.Remove(creature.Id);
+            golden.Remove(view);
             view.Leave(gone =>
             {
                 gone.gameObject.SetActive(false);
-                Pool(gone.Definition.id).Push(gone);
+                Pool(gone.Definition).Push(gone);
             });
         }
 
         private void Spawn(CreatureInstance creature, bool animate)
         {
             if (!definitions.TryGetValue(creature.Spec.Id, out var definition)) return;
+            if (creature.Golden) definition = GoldenLook.Of(definition);
 
-            var pool = Pool(definition.id);
+            var pool = Pool(definition);
             CreatureView view;
             if (pool.Count > 0)
             {
@@ -110,16 +117,51 @@ namespace TinyPlanet.Presentation
 
             view.Place(creature, simulation.Planet, terrain, animate);
             active[creature.Id] = view;
+            if (creature.Golden) golden.Add(view);
         }
 
-        private Stack<CreatureView> Pool(string id)
+        // Golden creatures glint now and then, so they catch the eye from across the planet.
+        private void Update()
         {
-            if (!pools.TryGetValue(id, out var pool))
+            if (Effects == null || golden.Count == 0) return;
+            glintTimer -= Time.deltaTime;
+            if (glintTimer > 0f) return;
+            glintTimer = 0.5f;
+            foreach (var view in golden)
+            {
+                if (Random.value < 0.6f) Effects.Glint(view.BodyCentre, view.transform.up);
+            }
+        }
+
+        private Stack<CreatureView> Pool(CreatureDefinition definition)
+        {
+            if (!pools.TryGetValue(definition, out var pool))
             {
                 pool = new Stack<CreatureView>();
-                pools[id] = pool;
+                pools[definition] = pool;
             }
             return pool;
+        }
+    }
+
+    /// <summary>The rare golden colours of a species: a copy of its definition, dressed in gold.</summary>
+    public static class GoldenLook
+    {
+        public static readonly Color Gold = new Color(1f, 0.78f, 0.22f);
+        private static readonly Dictionary<CreatureDefinition, CreatureDefinition> Cache = new Dictionary<CreatureDefinition, CreatureDefinition>();
+
+        public static CreatureDefinition Of(CreatureDefinition definition)
+        {
+            if (Cache.TryGetValue(definition, out var golden)) return golden;
+            golden = Object.Instantiate(definition);
+            golden.name = definition.name + " (Golden)";
+            golden.hideFlags = HideFlags.DontSave;
+            golden.displayName = string.Format(UI.Strings.GoldenNameFormat, definition.displayName);
+            // Brighter than white, so the bloom makes it shine even at night.
+            golden.primaryColor = Color.Lerp(definition.primaryColor, Gold, 0.9f) * 1.6f;
+            golden.secondaryColor = Color.Lerp(definition.secondaryColor, new Color(1f, 0.95f, 0.70f), 0.8f) * 1.4f;
+            Cache[definition] = golden;
+            return golden;
         }
     }
 }

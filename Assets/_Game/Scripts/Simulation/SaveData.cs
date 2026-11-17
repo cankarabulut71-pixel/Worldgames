@@ -20,6 +20,7 @@ namespace TinyPlanet.Simulation
         public int homeCell;
         public long arrivedAtUtcTicks;
         public long unhappySinceUtcTicks;
+        public bool golden;
     }
 
     /// <summary>One planet's state.</summary>
@@ -47,6 +48,9 @@ namespace TinyPlanet.Simulation
         public int planetLevel = 1;
         public List<string> unlockedBiomes = new List<string>();
         public List<string> unlockedPlants = new List<string>();
+
+        /// <summary>Species seen in their rare golden colours.</summary>
+        public List<string> goldenFound = new List<string>();
 
         /// <summary>The format the file was written in, before upgrading. Not saved.</summary>
         [NonSerialized] public int loadedFromVersion = CurrentVersion;
@@ -143,6 +147,7 @@ namespace TinyPlanet.Simulation
             if (data.nextCreatureId < 1) data.nextCreatureId = 1;
             if (data.unlockedBiomes == null) data.unlockedBiomes = new List<string>();
             if (data.unlockedPlants == null) data.unlockedPlants = new List<string>();
+            if (data.goldenFound == null) data.goldenFound = new List<string>();
             if (data.planetLevel < 1) data.planetLevel = 1;
             // Every planet written before version 4 had been played.
             if (data.version < 4) data.started = true;

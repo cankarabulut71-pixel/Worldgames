@@ -15,7 +15,7 @@ MonoBehaviour:
   id: flower
   displayName: Flower
   seedCost: 10
-  energyPerMinute: 8
+  energyPerMinute: 3
   refundFraction: 0.5
   life: 2
   unlockLevel: 1

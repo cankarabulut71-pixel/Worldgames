@@ -18,6 +18,14 @@ namespace TinyPlanet.Presentation
     public sealed class GameBootstrap : MonoBehaviour
     {
         private const float TickInterval = 0.25f;
+
+        /// <summary>Time away after which coming back shows the "while you were away" card instead of a toast.</summary>
+        private const double AwaySummarySeconds = 10 * 60;
+
+        private Sky planetSky;
+        private SkyView skyView;
+        private Material skyMaterial;
+        private ColorAdjustments grading;
         private const float AutosaveInterval = 30f;
 
         [SerializeField] private GameConfig config;
@@ -47,6 +55,11 @@ namespace TinyPlanet.Presentation
         private PlanetView planetView;
         private OrbitCamera orbit;
         private HudController hud;
+        private Effects effects;
+        private AudioDirector audioDirector;
+        private PlacementIndicator marker;
+        private InputReader input;
+        private float radius;
         private float tickTimer;
         private float autosaveTimer;
         private bool savingEnabled;
@@ -97,12 +110,21 @@ namespace TinyPlanet.Presentation
                 MaxOfflineHours = config.maxOfflineHours,
                 MaxCatchUpChecks = config.maxCatchUpChecks,
                 LevelLifeThresholds = config.levelLifeThresholds ?? Array.Empty<int>(),
+                GoldenChance = config.goldenChance,
             };
-            simulation = new PlanetSimulation(planet, recipe.Plants, recipe.Creatures, economy, clock, save);
+            // Night and day follow the device's own clock; each planet has its own rainy days.
+            planetSky = new Sky(save.seed, new SkySettings
+            {
+                NightStartHour = config.nightStartHour,
+                DayStartHour = config.dayStartHour,
+                RainChance = config.rainChance,
+                RainGrowthMultiplier = config.rainGrowthMultiplier,
+            }, TimeZoneInfo.Local.GetUtcOffset(DateTime.UtcNow));
+            simulation = new PlanetSimulation(planet, recipe.Plants, recipe.Creatures, economy, clock, save, null, planetSky);
 
-            materials = new MaterialLibrary(config.litMaterial, config.unlitMaterial);
+            materials = new MaterialLibrary(config.litMaterial, config.unlitMaterial, config.terrainMaterial);
 
-            float radius = config.planetRadius * recipe.RadiusScale;
+            radius = config.planetRadius * recipe.RadiusScale;
             planetView = new GameObject("Planet").AddComponent<PlanetView>();
             planetView.Init(simulation, config, materials, biomeDefinitions, look, radius);
 
@@ -111,8 +133,18 @@ namespace TinyPlanet.Presentation
             creatureLayer.Init(simulation, planetCreatures, materials, planetView.Terrain);
 
             SetUpLook();
+
+            effects = new GameObject("Effects").AddComponent<Effects>();
+            effects.Init(config.particleMaterial);
+            marker = new GameObject("Placement Marker").AddComponent<PlacementIndicator>();
+            marker.Init(config.particleMaterial, planetView.CellSize * 1.3f);
+            audioDirector = new GameObject("Audio").AddComponent<AudioDirector>();
+            audioDirector.Init(AmbienceInView);
             orbit = gameCamera.gameObject.AddComponent<OrbitCamera>();
             orbit.Init(gameCamera, radius);
+            creatureLayer.Effects = effects;
+            skyView = new GameObject("Sky").AddComponent<SkyView>();
+            skyView.Init(simulation, planetView, gameCamera, keyLight, skyMaterial, grading, audioDirector, config.particleMaterial, radius);
             // A new planet opens on its starting land.
             if (!save.started) orbit.LookAt(planetView.BiomeCentre(0), instant: true);
 
@@ -125,19 +157,25 @@ namespace TinyPlanet.Presentation
             }
 
             hud = new GameObject("HUD").AddComponent<HudController>();
-            hud.Init(simulation, planetPlants, showDebug: Debug.isDebugBuild);
+            hud.Init(simulation, planetPlants, showDebug: Debug.isDebugBuild, iconFor: id => IconFor(id, false));
             hud.SetPlanetName(recipe.Name);
             hud.DebugAddEnergy += () => simulation.AddEnergy(100);
             hud.DebugSkipTime += SkipTime;
             hud.DebugReset += ResetProgress;
             hud.DebugUnlockAll += simulation.DebugUnlockAll;
             hud.DebugNewSeed += RerollPlanet;
+            // First press flips night or rain away from what the clock says; the second follows the clock again.
+            hud.DebugToggleNight += () => planetSky.DebugNight =
+                planetSky.DebugNight.HasValue ? (bool?)null : !planetSky.IsNight(simulation.NowUtcTicks);
+            hud.DebugToggleRain += () => planetSky.DebugRain =
+                planetSky.DebugRain.HasValue ? (bool?)null : !planetSky.IsRaining(simulation.NowUtcTicks);
 
             codex = hud.gameObject.AddComponent<CodexController>();
             codex.Init(hud.SafeArea, simulation, BuildCodexEntries(), IconFor, OverallProgress);
             hud.CodexClicked += codex.Open;
             UpdateCodexProgress();
             simulation.SpeciesDiscovered += OnSpeciesDiscovered;
+            simulation.GoldenDiscovered += OnGoldenDiscovered;
             simulation.CreatureArrived += _ => codex.Refresh();
             simulation.CreatureLeft += _ => codex.Refresh();
 
@@ -154,7 +192,11 @@ namespace TinyPlanet.Presentation
             planets.SetLevelNeeded(config.newPlanetLevel);
             hud.PlanetsClicked += planets.Open;
 
-            var input = gameObject.AddComponent<InputReader>();
+            simulation.PlantPlanted += OnPlantPlanted;
+            simulation.PlantStageChanged += OnPlantStageChanged;
+            PressFeedback.Clicked += OnUiClicked;
+
+            input = gameObject.AddComponent<InputReader>();
             input.Dragged += orbit.Drag;
             input.DragEnded += orbit.EndDrag;
             input.Zoomed += orbit.Zoom;
@@ -164,8 +206,7 @@ namespace TinyPlanet.Presentation
 
             if (save.started)
             {
-                long gained = (long)Math.Floor(simulation.Energy - save.energy);
-                if (gained >= 1) hud.ShowToast(string.Format(Strings.WelcomeBackFormat, gained.ToString("N0")), 3f);
+                WelcomeBack(save);
             }
             else if (activeIndex > 0)
             {
@@ -179,11 +220,14 @@ namespace TinyPlanet.Presentation
             // The sky glows behind the planet, wherever the camera has turned.
             Shader.SetGlobalVector(SkyCentreId, gameCamera.transform.forward);
 
+            UpdateMarker();
+
             tickTimer += Time.unscaledDeltaTime;
             if (tickTimer >= TickInterval)
             {
                 tickTimer = 0f;
                 simulation.Tick();
+                hud.SetHint(CurrentHint());
             }
 
             autosaveTimer += Time.unscaledDeltaTime;
@@ -192,12 +236,24 @@ namespace TinyPlanet.Presentation
 
         private static readonly int SkyCentreId = Shader.PropertyToID("_SkyCentre");
 
+        // Two hints for a brand-new player on the home planet, each gone as soon as it has been followed.
+        private string CurrentHint()
+        {
+            if (activeIndex != 0) return null;
+            foreach (var creature in simulation.CreatureSpecs)
+            {
+                if (simulation.IsDiscovered(creature.Id)) return null;
+            }
+            return simulation.Plants.Count == 0 ? Strings.HintPlant : Strings.HintAttract;
+        }
+
         // Sky, light and post-processing: the mood of the scene.
         private void SetUpLook()
         {
             if (config.skyMaterial != null)
             {
                 var sky = new Material(config.skyMaterial);
+                skyMaterial = sky;
                 sky.SetColor("_Centre", look.Palette.skyCentre);
                 sky.SetColor("_Edge", look.Palette.skyEdge);
                 RenderSettings.skybox = sky;
@@ -228,7 +284,7 @@ namespace TinyPlanet.Presentation
             bloom.threshold.Override(0.95f);
             bloom.scatter.Override(0.65f);
             profile.Add<Tonemapping>(true).mode.Override(TonemappingMode.Neutral);
-            var grading = profile.Add<ColorAdjustments>(true);
+            grading = profile.Add<ColorAdjustments>(true);
             grading.saturation.Override(14f);
             grading.contrast.Override(8f);
             grading.postExposure.Override(-0.1f);
@@ -254,6 +310,8 @@ namespace TinyPlanet.Presentation
 
         private void OnApplicationQuit() => Save();
 
+        private void OnDestroy() => PressFeedback.Clicked -= OnUiClicked;
+
         private void OnTapped(Vector2 screenPosition)
         {
             // Creatures first: they are small and stand on top of cells the player might otherwise plant on.
@@ -262,6 +320,9 @@ namespace TinyPlanet.Presentation
             {
                 creature.React();
                 var definition = creature.Definition;
+                effects.Tapped(creature.BodyCentre, creature.transform.up, definition.primaryColor);
+                audioDirector.Creature((int)definition.shape, definition.size);
+                Haptics.Medium();
                 hud.ShowToast(string.Format(Strings.CreatureTapFormat, definition.displayName, Strings.Rarity(definition.rarity)));
                 return;
             }
@@ -279,17 +340,30 @@ namespace TinyPlanet.Presentation
                 }
                 string name = DisplayName(existing.Spec.Id);
                 if (simulation.TryRemove(cell, out int refund))
+                {
                     hud.ShowToast(string.Format(Strings.RemovedFormat, name, refund));
+                    effects.Planted(planetView.CellPoint(cell), planetView.CellNormal(cell), config.soilColor);
+                    audioDirector.Plant();
+                    Haptics.Light();
+                }
                 return;
             }
 
             if (existing != null)
             {
                 DescribePlant(existing);
+                effects.Ping(planetView.CellPoint(cell), planetView.CellNormal(cell), new Color(1f, 1f, 1f, 0.8f), planetView.CellSize * 1.6f);
+                audioDirector.Click();
                 return;
             }
 
             var result = simulation.TryPlant(cell, hud.SelectedPlantId);
+            if (result != PlantResult.Ok)
+            {
+                effects.Ping(planetView.CellPoint(cell), planetView.CellNormal(cell), MarkerNo, planetView.CellSize * 1.4f);
+                audioDirector.Deny();
+                if (result == PlantResult.NotEnoughEnergy) hud.ShakeEnergy();
+            }
             string land = BiomeName(simulation.Planet.Cells[cell].Biome);
             switch (result)
             {
@@ -309,6 +383,9 @@ namespace TinyPlanet.Presentation
         {
             hud.ShowDiscovery(Strings.LevelUpHeading, string.Format(Strings.LevelUpFormat, level), 0, LevelAccent);
             upgrades.Refresh();
+            effects.LevelUp(planetView.transform.position, radius, LevelAccent);
+            audioDirector.LevelUp();
+            Haptics.Strong();
         }
 
         private void OnBiomeUnlocked(string biomeId)
@@ -320,10 +397,22 @@ namespace TinyPlanet.Presentation
             // Show the player the land waking up.
             upgrades.Close();
             orbit.LookAt(planetView.BiomeCentre(index), instant: false);
+
+            var points = new List<Vector3>();
+            var cells = simulation.Planet.Cells;
+            for (int i = 0; i < cells.Length; i++)
+            {
+                if (cells[i].Biome == index && !simulation.Planet.IsWater(i)) points.Add(planetView.CellPoint(i));
+            }
+            effects.Wave(points, planetView.BiomeCentre(index), look.Shift(biome.groundColor), 2f);
+            audioDirector.Unlock();
+            Haptics.Strong();
         }
 
         private void OnPlantUnlocked(string plantId)
         {
+            audioDirector.Unlock();
+            Haptics.Medium();
             if (definitions.TryGetValue(plantId, out var plant))
                 hud.ShowDiscovery(Strings.SeedUnlockedHeading, plant.displayName, 0, plant.secondaryColor == Color.white ? plant.primaryColor : plant.secondaryColor);
         }
@@ -373,19 +462,202 @@ namespace TinyPlanet.Presentation
                     ? string.Format(Strings.NewRareCreatureFormat, Strings.Rarity(creature.rarity).ToLowerInvariant())
                     : Strings.NewCreature;
                 hud.ShowDiscovery(heading, creature.displayName, reward, CodexController.RarityColor(creature.rarity));
+                audioDirector.Discover((int)creature.rarity);
+                Haptics.Strong();
+
+                // Flash where it arrived, and turn the planet so the player sees it.
+                CreatureInstance newest = null;
+                foreach (var living in simulation.Creatures)
+                {
+                    if (living.Spec.Id == id) newest = living;
+                }
+                if (newest != null)
+                {
+                    int cell = newest.HomeCell;
+                    effects.Discovered(planetView.CellPoint(cell), planetView.CellNormal(cell), CodexController.RarityColor(creature.rarity), (int)creature.rarity);
+                    orbit.LookAt(simulation.Planet.Grid.Direction(cell), instant: false);
+                }
             }
             else if (definitions.TryGetValue(id, out var plant))
             {
                 hud.ShowDiscovery(Strings.NewPlant, plant.displayName, reward, plant.primaryColor);
+                audioDirector.Discover(0);
+                Haptics.Strong();
             }
             UpdateCodexProgress();
             codex.Refresh();
         }
 
+        private void OnGoldenDiscovered(string id, int reward)
+        {
+            if (!creatureDefinitions.TryGetValue(id, out var creature)) return;
+            hud.ShowDiscovery(Strings.NewGolden, GoldenLook.Of(creature).displayName, reward, GoldenLook.Gold);
+            audioDirector.Discover(2);
+            Haptics.Strong();
+
+            CreatureInstance newest = null;
+            foreach (var living in simulation.Creatures)
+            {
+                if (living.Spec.Id == id && living.Golden) newest = living;
+            }
+            if (newest != null)
+            {
+                int cell = newest.HomeCell;
+                effects.Discovered(planetView.CellPoint(cell), planetView.CellNormal(cell), GoldenLook.Gold, 2);
+                orbit.LookAt(simulation.Planet.Grid.Direction(cell), instant: false);
+            }
+            codex.Refresh();
+        }
+
+        // ---------- coming back ----------
+
+        // Catches up on the time away right now, so everything that happened can be summed up: after a short
+        // break a toast with the energy earned, after a longer one a card listing who arrived and what grew.
+        private void WelcomeBack(SaveData save)
+        {
+            long savedAt = save.savedAtUtcTicks;
+            double energyBefore = save.energy;
+            var arrivals = new List<CreatureInstance>();
+            Action<CreatureInstance> collect = arrivals.Add;
+            simulation.CreatureArrived += collect;
+            simulation.Tick();
+            simulation.CreatureArrived -= collect;
+
+            long now = simulation.NowUtcTicks;
+            long gained = (long)Math.Floor(simulation.Energy - energyBefore);
+            double away = savedAt > 0 ? (now - savedAt) / (double)TimeSpan.TicksPerSecond : 0;
+            if (away < AwaySummarySeconds)
+            {
+                if (gained >= 1) hud.ShowToast(string.Format(Strings.WelcomeBackFormat, gained.ToString("N0")), 3f);
+                return;
+            }
+
+            // Only those still here: a night visitor may have gone home by morning.
+            arrivals.RemoveAll(creature => !ContainsCreature(creature));
+            int grown = 0;
+            foreach (var plant in simulation.Plants)
+            {
+                if (plant.MatureAtUtcTicks > savedAt && plant.MatureAtUtcTicks <= now) grown++;
+            }
+
+            var lines = new List<(string text, Texture icon, Color tint)>();
+            if (gained >= 1) lines.Add((string.Format(Strings.AwayEnergyFormat, gained.ToString("N0")), null, Color.white));
+            if (grown > 0) lines.Add((grown == 1 ? Strings.AwayGrownOne : string.Format(Strings.AwayGrownFormat, grown), null, Color.white));
+
+            var groups = new List<(string id, bool golden, int count)>();
+            foreach (var creature in arrivals)
+            {
+                int index = groups.FindIndex(g => g.id == creature.Spec.Id && g.golden == creature.Golden);
+                if (index < 0) groups.Add((creature.Spec.Id, creature.Golden, 1));
+                else groups[index] = (groups[index].id, groups[index].golden, groups[index].count + 1);
+            }
+            // Golden and rare visitors first; the card has room for a handful.
+            groups.Sort((a, b) => (b.golden ? 10 : 0) + (int)RarityOf(b.id) - ((a.golden ? 10 : 0) + (int)RarityOf(a.id)));
+            for (int i = 0; i < groups.Count && i < 4; i++)
+            {
+                var (id, golden, count) = groups[i];
+                if (!creatureDefinitions.TryGetValue(id, out var definition)) continue;
+                string name = golden ? GoldenLook.Of(definition).displayName : definition.displayName;
+                string text = count > 1 ? string.Format(Strings.AwayArrivedManyFormat, name, count) : string.Format(Strings.AwayArrivedFormat, name);
+                lines.Add((text, IconFor(id, false), golden ? GoldenLook.Gold : CodexController.RarityColor(definition.rarity)));
+            }
+            if (simulation.Sky.IsRaining(now)) lines.Add((Strings.AwayRaining, null, Color.white));
+            if (lines.Count == 0) lines.Add((Strings.AwayNothing, null, Color.white));
+
+            hud.ShowSummary(Strings.AwayTitle, lines);
+
+            // Turn to the newest arrival, so the first thing the player sees is who came.
+            if (arrivals.Count > 0)
+                orbit.LookAt(simulation.Planet.Grid.Direction(arrivals[arrivals.Count - 1].HomeCell), instant: false);
+        }
+
+        private bool ContainsCreature(CreatureInstance creature)
+        {
+            foreach (var living in simulation.Creatures)
+            {
+                if (living == creature) return true;
+            }
+            return false;
+        }
+
+        private Rarity RarityOf(string creatureId) =>
+            creatureDefinitions.TryGetValue(creatureId, out var definition) ? definition.rarity : Rarity.Common;
+
         private void UpdateCodexProgress()
         {
             var (found, total) = codex.Progress();
             hud.SetCodexProgress(found, total);
+        }
+
+        // ---------- feel: effects, sound, marker ----------
+
+        private static readonly Color MarkerOk = new Color(0.75f, 1f, 0.6f, 0.9f);
+        private static readonly Color MarkerLook = new Color(1f, 1f, 1f, 0.7f);
+        private static readonly Color MarkerPoor = new Color(1f, 0.78f, 0.35f, 0.85f);
+        private static readonly Color MarkerNo = new Color(1f, 0.45f, 0.4f, 0.6f);
+        private static readonly Color MarkerRemove = new Color(1f, 0.4f, 0.35f, 0.9f);
+
+        private void OnPlantPlanted(PlantInstance plant)
+        {
+            effects.Planted(planetView.CellPoint(plant.Cell), planetView.CellNormal(plant.Cell), config.soilColor);
+            audioDirector.Plant();
+            Haptics.Light();
+        }
+
+        private void OnPlantStageChanged(PlantInstance plant, PlantStage stage)
+        {
+            if (stage != PlantStage.Mature || !definitions.TryGetValue(plant.Spec.Id, out var definition)) return;
+            var color = definition.secondaryColor == Color.white ? definition.primaryColor : definition.secondaryColor;
+            effects.Grown(planetView.CellPoint(plant.Cell), planetView.CellNormal(plant.Cell), color, definition.matureHeight);
+            audioDirector.Grow();
+        }
+
+        private void OnUiClicked()
+        {
+            audioDirector.Click();
+            Haptics.Light();
+        }
+
+        // The ring under the pointer, coloured by what a tap would do there.
+        private void UpdateMarker()
+        {
+            if (!input.TryGetPointer(out var point, out bool pressed)
+                || !planetView.TryGetCell(gameCamera.ScreenPointToRay(point), out int cell))
+            {
+                marker.Hide();
+                return;
+            }
+
+            Color color;
+            var existing = simulation.PlantAt(cell);
+            if (hud.RemoveMode) color = existing != null ? MarkerRemove : MarkerNo;
+            else if (existing != null) color = MarkerLook;
+            else
+            {
+                switch (simulation.CanPlant(cell, hud.SelectedPlantId))
+                {
+                    case PlantResult.Ok: color = MarkerOk; break;
+                    case PlantResult.NotEnoughEnergy: color = MarkerPoor; break;
+                    default: color = MarkerNo; break;
+                }
+            }
+            marker.Show(planetView.CellPoint(cell), planetView.CellNormal(cell), color, pressed);
+        }
+
+        // Which ambience fits the land in the middle of the view.
+        private Ambience AmbienceInView()
+        {
+            var planet = simulation.Planet;
+            int cell = planet.Grid.FindNearestCell(gameCamera.transform.position - planetView.transform.position);
+            if (!simulation.IsAwake(cell)) return Ambience.Wind;
+            int biome = planet.Cells[cell].Biome;
+            if (biome < 0 || biome >= biomeDefinitions.Count) return Ambience.Birds;
+            switch (biomeDefinitions[biome].coverShape)
+            {
+                case CoverShape.Reeds: return Ambience.Marsh;
+                case CoverShape.RoundTrees: return Ambience.Birds;
+                default: return Ambience.Wind;
+            }
         }
 
         // ---------- planets ----------
@@ -602,7 +874,7 @@ namespace TinyPlanet.Presentation
             }
             else
             {
-                double left = Growth.SecondsUntilMature(plant.Spec, plant.PlantedAtUtcTicks, now);
+                double left = plant.SecondsUntilMature(now);
                 hud.ShowToast(string.Format(Strings.GrowingFormat, name, Strings.Duration(left)));
             }
         }

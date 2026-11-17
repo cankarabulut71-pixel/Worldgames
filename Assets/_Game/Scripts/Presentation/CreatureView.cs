@@ -6,7 +6,7 @@ using UnityEngine;
 namespace TinyPlanet.Presentation
 {
     /// <summary>
-    /// Placeholder visual for one creature, built from primitives. Wanders between cells near its home,
+    /// One creature on the planet, drawn with its low-poly model. Wanders between cells near its home,
     /// following the sphere with its up vector along the surface normal. Pooled by CreatureLayer.
     /// </summary>
     public sealed class CreatureView : MonoBehaviour
@@ -46,71 +46,21 @@ namespace TinyPlanet.Presentation
         public void Build(CreatureDefinition definition, MaterialLibrary materials)
         {
             Definition = definition;
-            body = new GameObject("Body").transform;
-            body.SetParent(transform, false);
+            var model = CreatureModels.For(definition);
+            flies = model.Flies;
+            hoverHeight = model.HoverHeight;
 
-            var primary = materials.Lit(definition.primaryColor);
-            var secondary = materials.Lit(definition.secondaryColor);
-            var eye = materials.Lit(new Color(0.08f, 0.08f, 0.1f));
+            // Glowing creatures are unlit, in an over-bright colour so the bloom picks them up.
+            Material bodyMaterial = model.Glows ? materials.Unlit(definition.secondaryColor * 1.5f) : materials.Terrain;
+            Material wingMaterial = model.Glows ? materials.Unlit(definition.primaryColor * 1.6f) : materials.Terrain;
 
-            switch (definition.shape)
+            body = Part("Body", transform, model.Body, bodyMaterial, Vector3.zero);
+            if (model.LeftWing != null)
             {
-                case CreatureShape.Hopper:
-                    Part(PrimitiveType.Sphere, body, primary, new Vector3(0f, 0.16f, 0f), new Vector3(0.30f, 0.26f, 0.36f));
-                    Part(PrimitiveType.Sphere, body, primary, new Vector3(0f, 0.31f, 0.16f), Vector3.one * 0.22f);
-                    Part(PrimitiveType.Cube, body, secondary, new Vector3(0.055f, 0.47f, 0.12f), new Vector3(0.05f, 0.2f, 0.035f));
-                    Part(PrimitiveType.Cube, body, secondary, new Vector3(-0.055f, 0.47f, 0.12f), new Vector3(0.05f, 0.2f, 0.035f));
-                    Part(PrimitiveType.Sphere, body, secondary, new Vector3(0f, 0.19f, -0.19f), Vector3.one * 0.11f);
-                    Eyes(eye, new Vector3(0f, 0.34f, 0.26f), 0.05f);
-                    break;
-
-                case CreatureShape.Flutter:
-                    flies = true;
-                    hoverHeight = 0.75f;
-                    Part(PrimitiveType.Capsule, body, secondary, Vector3.zero, new Vector3(0.06f, 0.1f, 0.06f), Quaternion.Euler(90f, 0f, 0f));
-                    leftWing = Wing(body, primary, -1f, new Vector3(0.24f, 0.015f, 0.2f));
-                    rightWing = Wing(body, primary, 1f, new Vector3(0.24f, 0.015f, 0.2f));
-                    break;
-
-                case CreatureShape.Crawler:
-                    Part(PrimitiveType.Sphere, body, primary, new Vector3(0f, 0.07f, 0f), new Vector3(0.16f, 0.11f, 0.36f));
-                    Part(PrimitiveType.Sphere, body, primary, new Vector3(0f, 0.09f, 0.21f), new Vector3(0.15f, 0.1f, 0.15f));
-                    tail = Part(PrimitiveType.Cube, body, primary, new Vector3(0f, 0.05f, -0.27f), new Vector3(0.06f, 0.04f, 0.22f));
-                    Part(PrimitiveType.Sphere, body, secondary, new Vector3(0.04f, 0.12f, 0.03f), Vector3.one * 0.06f);
-                    Part(PrimitiveType.Sphere, body, secondary, new Vector3(-0.04f, 0.12f, -0.07f), Vector3.one * 0.06f);
-                    Eyes(eye, new Vector3(0f, 0.13f, 0.25f), 0.06f);
-                    break;
-
-                case CreatureShape.Climber:
-                    Part(PrimitiveType.Sphere, body, primary, new Vector3(0f, 0.17f, 0f), new Vector3(0.24f, 0.3f, 0.24f));
-                    Part(PrimitiveType.Sphere, body, primary, new Vector3(0f, 0.37f, 0.06f), Vector3.one * 0.2f);
-                    Part(PrimitiveType.Cube, body, primary, new Vector3(0.06f, 0.48f, 0.04f), new Vector3(0.05f, 0.07f, 0.03f));
-                    Part(PrimitiveType.Cube, body, primary, new Vector3(-0.06f, 0.48f, 0.04f), new Vector3(0.05f, 0.07f, 0.03f));
-                    tail = Part(PrimitiveType.Sphere, body, secondary, new Vector3(0f, 0.3f, -0.17f), new Vector3(0.15f, 0.38f, 0.15f), Quaternion.Euler(-20f, 0f, 0f));
-                    Eyes(eye, new Vector3(0f, 0.4f, 0.15f), 0.05f);
-                    break;
-
-                case CreatureShape.Shell:
-                    Part(PrimitiveType.Sphere, body, secondary, new Vector3(0f, 0.05f, 0.02f), new Vector3(0.16f, 0.09f, 0.40f));
-                    Part(PrimitiveType.Sphere, body, secondary, new Vector3(0f, 0.12f, 0.2f), new Vector3(0.11f, 0.13f, 0.11f));
-                    Part(PrimitiveType.Sphere, body, primary, new Vector3(0f, 0.2f, -0.04f), new Vector3(0.3f, 0.3f, 0.26f));
-                    Part(PrimitiveType.Sphere, body, secondary, new Vector3(0f, 0.27f, -0.05f), new Vector3(0.14f, 0.14f, 0.12f));
-                    Part(PrimitiveType.Cube, body, secondary, new Vector3(0.035f, 0.22f, 0.24f), new Vector3(0.02f, 0.1f, 0.02f), Quaternion.Euler(20f, 0f, 0f));
-                    Part(PrimitiveType.Cube, body, secondary, new Vector3(-0.035f, 0.22f, 0.24f), new Vector3(0.02f, 0.1f, 0.02f), Quaternion.Euler(20f, 0f, 0f));
-                    Eyes(eye, new Vector3(0f, 0.27f, 0.26f), 0.035f);
-                    break;
-
-                case CreatureShape.Glow:
-                    flies = true;
-                    hoverHeight = 1.15f;
-                    var glow = materials.Unlit(definition.primaryColor);
-                    var core = materials.Unlit(definition.secondaryColor);
-                    Part(PrimitiveType.Capsule, body, core, Vector3.zero, new Vector3(0.07f, 0.12f, 0.07f), Quaternion.Euler(90f, 0f, 0f));
-                    Part(PrimitiveType.Sphere, body, core, new Vector3(0f, 0f, 0.13f), Vector3.one * 0.08f);
-                    leftWing = Wing(body, glow, -1f, new Vector3(0.34f, 0.015f, 0.28f));
-                    rightWing = Wing(body, glow, 1f, new Vector3(0.34f, 0.015f, 0.28f));
-                    break;
+                leftWing = Part("Left Wing", body, model.LeftWing, wingMaterial, Vector3.zero);
+                rightWing = Part("Right Wing", body, model.RightWing, wingMaterial, Vector3.zero);
             }
+            if (model.Tail != null) tail = Part("Tail", body, model.Tail, materials.Terrain, model.TailPivot);
         }
 
         /// <summary>Starts life on the planet: at home, popping in if it has just arrived.</summary>
@@ -272,8 +222,12 @@ namespace TinyPlanet.Presentation
                     height += Mathf.Abs(Mathf.Sin(clock * 9f)) * 0.12f;
             }
 
-            if (tail != null && Definition.shape == CreatureShape.Crawler)
-                tail.localRotation = Quaternion.Euler(0f, Mathf.Sin(clock * 6f) * 20f, 0f);
+            if (tail != null)
+            {
+                tail.localRotation = Definition.shape == CreatureShape.Crawler
+                    ? Quaternion.Euler(0f, Mathf.Sin(clock * 6f) * 20f, 0f)
+                    : Quaternion.Euler(Mathf.Sin(clock * 3.1f) * 8f, 0f, Mathf.Sin(clock * 2.3f) * 6f);
+            }
 
             if (reactTime < ReactSeconds)
             {
@@ -293,38 +247,17 @@ namespace TinyPlanet.Presentation
             return Vector3.Cross(normal, side).normalized;
         }
 
-        private void Eyes(Material material, Vector3 centre, float spacing)
+        private static Transform Part(string name, Transform parent, Mesh mesh, Material material, Vector3 position)
         {
-            Part(PrimitiveType.Sphere, body, material, centre + new Vector3(spacing, 0f, 0f), Vector3.one * 0.04f);
-            Part(PrimitiveType.Sphere, body, material, centre - new Vector3(spacing, 0f, 0f), Vector3.one * 0.04f);
-        }
-
-        private static Transform Wing(Transform parent, Material material, float side, Vector3 size)
-        {
-            var pivot = new GameObject(side < 0f ? "Left Wing" : "Right Wing").transform;
-            pivot.SetParent(parent, false);
-            Part(PrimitiveType.Cube, pivot, material, new Vector3(side * size.x * 0.5f, 0f, 0f), size);
-            return pivot;
-        }
-
-        private static Transform Part(PrimitiveType type, Transform parent, Material material, Vector3 position, Vector3 scale) =>
-            Part(type, parent, material, position, scale, Quaternion.identity);
-
-        private static Transform Part(PrimitiveType type, Transform parent, Material material, Vector3 position, Vector3 scale, Quaternion rotation)
-        {
-            var part = GameObject.CreatePrimitive(type);
-            var collider = part.GetComponent<Collider>();
-            if (collider != null) Destroy(collider);
-
-            var renderer = part.GetComponent<MeshRenderer>();
+            var go = new GameObject(name);
+            go.transform.SetParent(parent, false);
+            go.transform.localPosition = position;
+            go.AddComponent<MeshFilter>().sharedMesh = mesh;
+            var renderer = go.AddComponent<MeshRenderer>();
             renderer.sharedMaterial = material;
             renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-
-            part.transform.SetParent(parent, false);
-            part.transform.localPosition = position;
-            part.transform.localRotation = rotation;
-            part.transform.localScale = scale;
-            return part.transform;
+            renderer.receiveShadows = false;
+            return go.transform;
         }
     }
 }

@@ -15,7 +15,7 @@ MonoBehaviour:
   id: bogbloom
   displayName: Bogbloom
   seedCost: 30
-  energyPerMinute: 18
+  energyPerMinute: 6
   refundFraction: 0.5
   life: 3
   unlockLevel: 4

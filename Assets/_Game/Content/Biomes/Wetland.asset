@@ -28,7 +28,7 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 598f2eb93ad275747b7e0a828db35762, type: 2}
   - {fileID: 11400000, guid: b620f72ab1d2ce144b82b69f9fe3a432, type: 2}
   unlockLevel: 3
-  unlockCost: 400
+  unlockCost: 250
   baseHeight: 0.05
   hilliness: 0.04
   coverShape: 3

@@ -41,6 +41,12 @@ namespace TinyPlanet.Simulation
 
         /// <summary>Life needed to reach level 2, 3, 4 and so on. The planet starts at level 1.</summary>
         public int[] LevelLifeThresholds = Array.Empty<int>();
+
+        /// <summary>Chance that an arriving creature wears its rare golden colours.</summary>
+        public double GoldenChance = 0.03;
+
+        /// <summary>The first golden one of a species pays this many times its discovery reward.</summary>
+        public double GoldenRewardMultiplier = 2;
     }
 
     /// <summary>
@@ -60,6 +66,7 @@ namespace TinyPlanet.Simulation
         private readonly List<PlantInstance> plants = new List<PlantInstance>();
         private readonly List<CreatureInstance> creatures = new List<CreatureInstance>();
         private readonly HashSet<string> discovered = new HashSet<string>();
+        private readonly HashSet<string> goldenFound = new HashSet<string>();
         private readonly List<int> homeCandidates = new List<int>();
         private readonly List<PlantSpec> plantSpecList = new List<PlantSpec>();
         private readonly HashSet<string> unlockedBiomes = new HashSet<string>();
@@ -75,9 +82,11 @@ namespace TinyPlanet.Simulation
             EconomySettings economy,
             IClock clock,
             SaveData save = null,
-            Random random = null)
+            Random random = null,
+            Sky sky = null)
         {
             Planet = planet ?? throw new ArgumentNullException(nameof(planet));
+            Sky = sky ?? Sky.Clear();
             this.economy = economy ?? new EconomySettings();
             this.clock = clock ?? throw new ArgumentNullException(nameof(clock));
             this.random = random ?? new Random(unchecked(planet.Seed * 31 + Environment.TickCount));
@@ -136,7 +145,7 @@ namespace TinyPlanet.Simulation
                     continue;
                 }
 
-                var plant = new PlantInstance(spec, saved.cell, saved.plantedAtUtcTicks);
+                var plant = new PlantInstance(spec, saved.cell, saved.plantedAtUtcTicks, Sky);
                 plant.ReportedStage = plant.StageAt(now);
                 occupants[saved.cell] = plant;
                 plants.Add(plant);
@@ -145,7 +154,7 @@ namespace TinyPlanet.Simulation
             foreach (var saved in save.creatures)
             {
                 if (!planet.Grid.IsValid(saved.homeCell) || !TryGetCreatureSpec(saved.specId, out var spec)) continue;
-                var creature = new CreatureInstance(saved.id, spec, saved.homeCell, saved.arrivedAtUtcTicks)
+                var creature = new CreatureInstance(saved.id, spec, saved.homeCell, saved.arrivedAtUtcTicks, saved.golden)
                 {
                     UnhappySinceUtcTicks = saved.unhappySinceUtcTicks,
                 };
@@ -157,6 +166,10 @@ namespace TinyPlanet.Simulation
             {
                 if (!string.IsNullOrEmpty(id)) discovered.Add(id);
             }
+            foreach (var id in save.goldenFound)
+            {
+                if (!string.IsNullOrEmpty(id)) goldenFound.Add(id);
+            }
 
             AccrueEnergy(now);
 
@@ -165,7 +178,11 @@ namespace TinyPlanet.Simulation
         }
 
         public Planet Planet { get; }
+        public Sky Sky { get; }
         public double Energy { get; private set; }
+
+        /// <summary>The moment spawn rules are being judged at: now, or a missed check being replayed.</summary>
+        internal long EvaluationUtcTicks => evaluationUtcTicks;
 
         /// <summary>Planet level, starting at 1. It rises with life and never falls.</summary>
         public int Level { get; private set; } = 1;
@@ -215,6 +232,9 @@ namespace TinyPlanet.Simulation
 
         /// <summary>A plant or creature species seen for the first time, and the energy it awarded.</summary>
         public event Action<string, int> SpeciesDiscovered;
+
+        /// <summary>The first golden one of a creature species, and the energy it awarded.</summary>
+        public event Action<string, int> GoldenDiscovered;
 
         public PlantInstance PlantAt(int cell) => Planet.Grid.IsValid(cell) ? occupants[cell] : null;
 
@@ -318,6 +338,8 @@ namespace TinyPlanet.Simulation
 
         public bool IsDiscovered(string speciesId) => discovered.Contains(speciesId ?? string.Empty);
 
+        public bool IsGoldenFound(string speciesId) => goldenFound.Contains(speciesId ?? string.Empty);
+
         public int CountCreatures(string specId)
         {
             int count = 0;
@@ -338,7 +360,8 @@ namespace TinyPlanet.Simulation
             return count;
         }
 
-        public PlantResult TryPlant(int cell, string specId)
+        /// <summary>What planting here would do, without planting: Ok, or the reason it would fail.</summary>
+        public PlantResult CanPlant(int cell, string specId)
         {
             if (!Planet.Grid.IsValid(cell)) return PlantResult.InvalidCell;
             if (!TryGetSpec(specId, out var spec)) return PlantResult.UnknownPlant;
@@ -348,10 +371,18 @@ namespace TinyPlanet.Simulation
             if (!IsPlantUnlocked(specId)) return PlantResult.Locked;
             if (!Planet.BiomeOf(cell).Allows(specId)) return PlantResult.WrongBiome;
             if (Energy < spec.SeedCost) return PlantResult.NotEnoughEnergy;
+            return PlantResult.Ok;
+        }
+
+        public PlantResult TryPlant(int cell, string specId)
+        {
+            var result = CanPlant(cell, specId);
+            if (result != PlantResult.Ok) return result;
+            var spec = specs[specId];
 
             SetEnergy(Energy - spec.SeedCost);
 
-            var plant = new PlantInstance(spec, cell, clock.UtcNow.Ticks) { ReportedStage = PlantStage.Seed };
+            var plant = new PlantInstance(spec, cell, clock.UtcNow.Ticks, Sky) { ReportedStage = PlantStage.Seed };
             occupants[cell] = plant;
             plants.Add(plant);
             PlantPlanted?.Invoke(plant);
@@ -441,10 +472,13 @@ namespace TinyPlanet.Simulation
                     homeCell = creature.HomeCell,
                     arrivedAtUtcTicks = creature.ArrivedAtUtcTicks,
                     unhappySinceUtcTicks = creature.UnhappySinceUtcTicks,
+                    golden = creature.Golden,
                 });
             }
             data.discovered.AddRange(discovered);
             data.discovered.Sort(StringComparer.Ordinal);
+            data.goldenFound.AddRange(goldenFound);
+            data.goldenFound.Sort(StringComparer.Ordinal);
             return data;
         }
 
@@ -467,7 +501,8 @@ namespace TinyPlanet.Simulation
             (long)(Math.Max(1.0, spec.CheckIntervalSeconds) * TimeSpan.TicksPerSecond);
 
         // Each species is checked on its own interval. Checks missed while away are replayed, up to a cap,
-        // so a garden left overnight still has visitors in the morning.
+        // so a garden left overnight still has visitors in the morning. A long absence spreads the replayed
+        // checks over the whole time away, each judged at its own moment: night visitors come at night.
         private void UpdateCreatures(long now)
         {
             foreach (var spec in creatureSpecs)
@@ -476,13 +511,19 @@ namespace TinyPlanet.Simulation
                 if (!nextCheckUtcTicks.TryGetValue(spec.Id, out long next)) next = now + interval;
                 if (next - now > interval) next = now + interval; // the device clock moved backwards
 
+                int cap = Math.Max(1, economy.MaxCatchUpChecks);
+                long step = interval;
+                if (now - next > interval * (long)cap) step = (now - next) / cap;
+
                 int checks = 0;
-                while (next <= now && checks < economy.MaxCatchUpChecks)
+                while (next <= now && checks < cap)
                 {
+                    evaluationUtcTicks = next;
                     RunCheck(spec, next);
-                    next += interval;
+                    next += step;
                     checks++;
                 }
+                evaluationUtcTicks = now;
                 if (next <= now) next = now + interval;
                 nextCheckUtcTicks[spec.Id] = next;
             }
@@ -507,10 +548,17 @@ namespace TinyPlanet.Simulation
             int choices = fresh > 0 ? fresh : homeCandidates.Count;
             int home = homeCandidates[random.Next(choices)];
 
-            var creature = new CreatureInstance(nextCreatureId++, spec, home, checkUtcTicks);
+            bool golden = economy.GoldenChance > 0 && random.NextDouble() < economy.GoldenChance;
+            var creature = new CreatureInstance(nextCreatureId++, spec, home, checkUtcTicks, golden);
             creatures.Add(creature);
             CreatureArrived?.Invoke(creature);
             Discover(spec.Id, spec.DiscoveryReward);
+            if (golden && goldenFound.Add(spec.Id))
+            {
+                int reward = (int)Math.Round(spec.DiscoveryReward * economy.GoldenRewardMultiplier);
+                if (reward > 0) SetEnergy(Energy + reward);
+                GoldenDiscovered?.Invoke(spec.Id, reward);
+            }
         }
 
         // Creatures whose home no longer suits them move to another suitable spot if there is one,

@@ -25,6 +25,7 @@ MonoBehaviour:
   - {fileID: 11400000, guid: aac8d9eabd90fa04f90371590693e01f, type: 2}
   - {fileID: 11400000, guid: a3bd2f54790067a4d96c024e11523ee6, type: 2}
   - {fileID: 11400000, guid: 45db3c6e9d361a24a9577cdb5731627b, type: 2}
+  - {fileID: 11400000, guid: 76227ef8712f0ef4ca24fcef1723ba79, type: 2}
   unlockLevel: 1
   unlockCost: 0
   baseHeight: 0.07

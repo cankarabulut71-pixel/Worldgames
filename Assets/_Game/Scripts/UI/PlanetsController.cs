@@ -49,7 +49,7 @@ namespace TinyPlanet.UI
             this.discover = discover;
             this.visit = visit;
 
-            root = Panel("Planets", parent, Backdrop);
+            root = Panel("Planets", parent, Backdrop, 0f);
 
             var title = Label(root, Strings.PlanetsTitle, 64f, TextAlignmentOptions.Left);
             title.fontStyle = FontStyles.Bold;
@@ -103,11 +103,11 @@ namespace TinyPlanet.UI
         {
             var frame = Row(entry.Name);
 
-            var sky = Panel("Sky", frame, entry.Sky);
+            var sky = Panel("Sky", frame, entry.Sky, 65f);
             Anchor(sky, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(0f, 0.5f));
             sky.anchoredPosition = new Vector2(25f, 0f);
             sky.sizeDelta = new Vector2(130f, 130f);
-            var ground = Panel("Ground", sky, entry.Ground);
+            var ground = Panel("Ground", sky, entry.Ground, 41f);
             Stretch(ground, 24f);
 
             var text = Rect("Text", frame);
@@ -145,7 +145,7 @@ namespace TinyPlanet.UI
             var frame = Row("Discover");
             frame.GetComponent<Image>().color = new Color(0.07f, 0.09f, 0.16f, 1f);
 
-            var mark = Panel("Unknown", frame, new Color(0.16f, 0.20f, 0.32f, 1f));
+            var mark = Panel("Unknown", frame, new Color(0.16f, 0.20f, 0.32f, 1f), 65f);
             Anchor(mark, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(0f, 0.5f));
             mark.anchoredPosition = new Vector2(25f, 0f);
             mark.sizeDelta = new Vector2(130f, 130f);

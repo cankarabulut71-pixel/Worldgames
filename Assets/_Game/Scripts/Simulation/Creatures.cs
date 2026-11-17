@@ -34,13 +34,17 @@ namespace TinyPlanet.Simulation
     /// <summary>A creature living on the planet. Where it wanders is up to the view; the simulation only knows its home.</summary>
     public sealed class CreatureInstance
     {
-        public CreatureInstance(int id, CreatureSpec spec, int homeCell, long arrivedAtUtcTicks)
+        public CreatureInstance(int id, CreatureSpec spec, int homeCell, long arrivedAtUtcTicks, bool golden = false)
         {
             Id = id;
             Spec = spec;
             HomeCell = homeCell;
             ArrivedAtUtcTicks = arrivedAtUtcTicks;
+            Golden = golden;
         }
+
+        /// <summary>A rare colour variant, e.g. a Golden Tufthopper.</summary>
+        public bool Golden { get; }
 
         public int Id { get; }
         public CreatureSpec Spec { get; }
@@ -140,6 +144,18 @@ namespace TinyPlanet.Simulation
         public CreatureLivesHere(string creatureId) => CreatureId = creatureId;
 
         internal override bool IsMet(PlanetSimulation sim, int home) => sim.CountCreatures(CreatureId) > 0;
+    }
+
+    /// <summary>Only after dark, by the player's own clock.</summary>
+    public sealed class AtNight : SpawnCondition
+    {
+        internal override bool IsMet(PlanetSimulation sim, int home) => sim.Sky.IsNight(sim.EvaluationUtcTicks);
+    }
+
+    /// <summary>Only while it rains.</summary>
+    public sealed class InRain : SpawnCondition
+    {
+        internal override bool IsMet(PlanetSimulation sim, int home) => sim.Sky.IsRaining(sim.EvaluationUtcTicks);
     }
 
     /// <summary>Home is in one particular biome.</summary>

@@ -15,7 +15,7 @@ MonoBehaviour:
   id: reed
   displayName: Reed
   seedCost: 8
-  energyPerMinute: 5
+  energyPerMinute: 2
   refundFraction: 0.5
   life: 1
   unlockLevel: 3

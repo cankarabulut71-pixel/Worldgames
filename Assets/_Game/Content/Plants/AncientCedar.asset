@@ -1,0 +1,32 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e00287c47b0988345a0aecb08cb58d5f, type: 3}
+  m_Name: AncientCedar
+  m_EditorClassIdentifier: TinyPlanet.Game::TinyPlanet.Data.PlantDefinition
+  id: ancientcedar
+  displayName: Ancient Cedar
+  seedCost: 300
+  energyPerMinute: 60
+  refundFraction: 0.5
+  life: 50
+  unlockLevel: 6
+  unlockCost: 2500
+  seedSeconds: 64800
+  sproutSeconds: 194400
+  hint: Patience. Three days, and the mountain gains a giant.
+  description: A towering blue-green cedar that takes three days to rise. Its roots hold the stones together.
+  discoveryReward: 120
+  hintNoun: giant needles
+  shape: 5
+  primaryColor: {r: 0.08, g: 0.3, b: 0.3, a: 1}
+  secondaryColor: {r: 0.14, g: 0.4, b: 0.38, a: 1}
+  matureHeight: 2.4

@@ -15,7 +15,7 @@ MonoBehaviour:
   id: crystalbloom
   displayName: Crystalbloom
   seedCost: 250
-  energyPerMinute: 130
+  energyPerMinute: 42
   refundFraction: 0.5
   life: 10
   unlockLevel: 7

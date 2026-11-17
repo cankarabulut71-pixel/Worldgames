@@ -3,7 +3,8 @@
     "rootNamespace": "TinyPlanet.EditorTools",
     "references": [
         "TinyPlanet.Simulation",
-        "TinyPlanet.Game"
+        "TinyPlanet.Game",
+        "Unity.TextMeshPro"
     ],
     "includePlatforms": [
         "Editor"

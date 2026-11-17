@@ -33,6 +33,14 @@ namespace TinyPlanet.UI
         private RectTransform safeArea;
         private Rect appliedSafeArea;
         private TMP_Text energyLabel;
+        private RectTransform energyPanel;
+        private RectTransform energyOrb;
+        private double energyTarget;
+        private double energyShown = double.NaN;
+        private float energyPunch;
+        private float energyShake;
+        private Func<string, Texture> iconFor;
+        private RectTransform toastPill;
         private TMP_Text toastLabel;
         private CanvasGroup toastGroup;
         private float toastTimeLeft;
@@ -54,6 +62,12 @@ namespace TinyPlanet.UI
         private TMP_Text bannerReward;
         private float bannerTime = -1f;
 
+        private RectTransform hintHolder;
+        private RectTransform hintPill;
+        private CanvasGroup hintGroup;
+        private TMP_Text hintLabel;
+        private string hintText;
+
         /// <summary>The plant id the player has picked in the tray, or null in remove mode.</summary>
         public string SelectedPlantId { get; private set; }
         public bool RemoveMode { get; private set; }
@@ -69,15 +83,21 @@ namespace TinyPlanet.UI
         public event Action DebugAddEnergy;
         public event Action<double> DebugSkipTime;
         public event Action DebugReset;
+        public event Action DebugToggleNight;
+        public event Action DebugToggleRain;
 
-        public void Init(PlanetSimulation simulation, IReadOnlyList<PlantDefinition> plants, bool showDebug)
+        private RectTransform summary;
+
+        public void Init(PlanetSimulation simulation, IReadOnlyList<PlantDefinition> plants, bool showDebug, Func<string, Texture> iconFor = null)
         {
             this.simulation = simulation;
+            this.iconFor = iconFor;
 
             EnsureEventSystem();
             BuildCanvas();
             BuildEnergy();
             BuildToast();
+            BuildHint();
             BuildTray(plants);
             BuildCodexButton();
             BuildPlanetButton();
@@ -93,6 +113,9 @@ namespace TinyPlanet.UI
         }
 
         public void SetPlanetName(string name) => planetLabel.text = name;
+
+        /// <summary>Shakes the energy counter: there is not enough for that.</summary>
+        public void ShakeEnergy() => energyShake = 0.45f;
 
         /// <summary>Lets the upgrades button show a marker when something can be unlocked.</summary>
         public void SetUpgradeCheck(Func<bool> check)
@@ -141,6 +164,99 @@ namespace TinyPlanet.UI
             toastLabel.text = message;
             toastTimeLeft = seconds;
             toastGroup.alpha = 1f;
+            float width = Mathf.Min(toastLabel.GetPreferredValues(message).x + 80f, 1040f);
+            toastPill.sizeDelta = new Vector2(width, toastPill.sizeDelta.y);
+        }
+
+        /// <summary>A gentle, lasting nudge above the seed tray; null hides it.</summary>
+        public void SetHint(string text)
+        {
+            if (text == hintText) return;
+            hintText = text;
+            if (text == null) return; // fades out in Update
+            hintLabel.text = text;
+            float width = Mathf.Min(hintLabel.GetPreferredValues(text).x + 90f, 1040f);
+            hintPill.sizeDelta = new Vector2(width, hintPill.sizeDelta.y);
+        }
+
+        private void UpdateHint()
+        {
+            float target = hintText != null ? 1f : 0f;
+            hintGroup.alpha = Mathf.MoveTowards(hintGroup.alpha, target, Time.unscaledDeltaTime * 2.5f);
+            // A slow bob, so it reads as a hint rather than part of the HUD.
+            hintHolder.anchoredPosition = new Vector2(0f, 360f + Mathf.Sin(Time.unscaledTime * 2.2f) * 6f);
+        }
+
+        /// <summary>
+        /// The "while you were away" card: one line per thing that happened, each with an optional icon.
+        /// Closes on its button (or a tap on the dimmed backdrop).
+        /// </summary>
+        public void ShowSummary(string title, IReadOnlyList<(string text, Texture icon, Color tint)> lines, Action closed = null)
+        {
+            if (summary != null) Destroy(summary.gameObject);
+
+            var backdrop = Panel("Away Summary", safeArea, new Color(0.02f, 0.03f, 0.07f, 0.55f), 0f);
+            Stretch(backdrop);
+            summary = backdrop;
+            void Close()
+            {
+                if (summary == backdrop) summary = null;
+                Destroy(backdrop.gameObject);
+                closed?.Invoke();
+            }
+            var dismiss = backdrop.gameObject.AddComponent<Button>();
+            dismiss.transition = Selectable.Transition.None;
+            dismiss.onClick.AddListener(Close);
+
+            const float lineHeight = 96f;
+            float height = 150f + lines.Count * lineHeight + 150f;
+            var card = Panel("Card", backdrop, new Color(0.07f, 0.09f, 0.17f, 0.97f), 44f);
+            Anchor(card, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
+            card.sizeDelta = new Vector2(860f, height);
+            card.anchoredPosition = new Vector2(0f, 60f);
+
+            var heading = Label(card, title, 52f, TextAlignmentOptions.Center);
+            heading.fontStyle = FontStyles.Bold;
+            heading.color = SelectedColor;
+            TopBand(heading.rectTransform, 40f, 70f);
+
+            for (int i = 0; i < lines.Count; i++)
+            {
+                var (text, icon, tint) = lines[i];
+                var row = Rect("Line", card);
+                TopBand(row, 140f + i * lineHeight, lineHeight);
+                row.offsetMin = new Vector2(60f, row.offsetMin.y);
+                row.offsetMax = new Vector2(-60f, row.offsetMax.y);
+
+                float textLeft = 0f;
+                if (icon != null)
+                {
+                    var glow = Circle("Glow", row, new Color(tint.r, tint.g, tint.b, 0.25f));
+                    Anchor(glow.rectTransform, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(0f, 0.5f));
+                    glow.rectTransform.sizeDelta = new Vector2(80f, 80f);
+                    glow.raycastTarget = false;
+                    var picture = Rect("Icon", row);
+                    Anchor(picture, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(0f, 0.5f));
+                    picture.anchoredPosition = new Vector2(-6f, 0f);
+                    picture.sizeDelta = new Vector2(92f, 92f);
+                    var image = picture.gameObject.AddComponent<RawImage>();
+                    image.texture = icon;
+                    image.raycastTarget = false;
+                    textLeft = 110f;
+                }
+                var label = Label(row, text, 40f, TextAlignmentOptions.Left);
+                Stretch(label.rectTransform);
+                label.rectTransform.offsetMin = new Vector2(textLeft, 0f);
+            }
+
+            var ok = TextButton(card, Strings.AwayOk, 42f, SelectedColor, Close);
+            var okRect = (RectTransform)ok.transform;
+            Anchor(okRect, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0.5f, 0f));
+            okRect.anchoredPosition = new Vector2(0f, 40f);
+            okRect.sizeDelta = new Vector2(320f, 96f);
+            ok.GetComponentInChildren<TMP_Text>().color = new Color(0.16f, 0.12f, 0.04f);
+
+            backdrop.SetAsLastSibling();
         }
 
         public void SetCodexProgress(int found, int total)
@@ -213,6 +329,8 @@ namespace TinyPlanet.UI
             if (!Mathf.Approximately(scaler.matchWidthOrHeight, match)) scaler.matchWidthOrHeight = match;
 
             UpdateBanner();
+            UpdateEnergy();
+            UpdateHint();
 
             levelTimer += Time.unscaledDeltaTime;
             if (levelTimer >= 0.5f) RefreshLevel();
@@ -226,16 +344,46 @@ namespace TinyPlanet.UI
 
         private void OnEnergyChanged(double energy)
         {
+            // A sudden gain (a reward) makes the counter jump and roll up; steady income just ticks.
+            if (!double.IsNaN(energyShown) && energy - energyTarget >= 5.0) energyPunch = 1f;
+            energyTarget = energy;
+            if (double.IsNaN(energyShown)) energyShown = energy;
+
             long whole = (long)Math.Floor(energy);
             if (whole == shownEnergy) return;
             shownEnergy = whole;
 
-            energyLabel.text = string.Format(Strings.EnergyFormat, whole.ToString("N0"));
             foreach (var item in items)
             {
                 if (item.PlantId != null)
                     item.Group.alpha = whole >= item.Cost ? 1f : 0.45f;
             }
+        }
+
+        // Rolls the counter towards the real value, and plays the punch and shake.
+        private void UpdateEnergy()
+        {
+            if (double.IsNaN(energyShown)) return;
+            float dt = Time.unscaledDeltaTime;
+            double gap = energyTarget - energyShown;
+            if (Math.Abs(gap) < 0.5) energyShown = energyTarget;
+            else energyShown += gap * (1.0 - Math.Exp(-dt * 6.0));
+
+            // The orb says "energy", so the counter is just the number.
+            string text = ((long)Math.Floor(energyShown)).ToString("N0");
+            if (energyLabel.text != text) energyLabel.text = text;
+
+            energyPunch = Mathf.Max(0f, energyPunch - dt * 2.5f);
+            energyOrb.localScale = Vector3.one * (1f + Mathf.Sin(energyPunch * Mathf.PI) * 0.35f + Mathf.Sin(Time.unscaledTime * 2f) * 0.04f);
+
+            float shake = 0f;
+            if (energyShake > 0f)
+            {
+                energyShake = Mathf.Max(0f, energyShake - dt);
+                shake = Mathf.Sin(energyShake * 60f) * 14f * (energyShake / 0.45f);
+            }
+            energyPanel.anchoredPosition = new Vector2(30f + shake, -30f);
+            energyLabel.color = Color.Lerp(Color.white, new Color(1f, 0.55f, 0.5f), energyShake / 0.45f);
         }
 
         private void Select(string plantId, bool remove)
@@ -289,13 +437,30 @@ namespace TinyPlanet.UI
 
         private void BuildEnergy()
         {
-            var panel = Panel("Energy", safeArea, PanelColor);
+            var panel = Panel("Energy", safeArea, PanelColor, 50f);
             Anchor(panel, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f));
             panel.anchoredPosition = new Vector2(30f, -30f);
             panel.sizeDelta = new Vector2(400f, 100f);
+            energyPanel = panel;
 
-            energyLabel = Label(panel, string.Empty, 46f, TextAlignmentOptions.Center);
+            // A little glowing orb: the energy the planet makes.
+            var halo = Circle("Orb Glow", panel, new Color(1f, 0.85f, 0.35f, 0.25f));
+            Anchor(halo.rectTransform, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(0.5f, 0.5f));
+            halo.rectTransform.anchoredPosition = new Vector2(52f, 0f);
+            halo.rectTransform.sizeDelta = new Vector2(78f, 78f);
+            var orb = Circle("Orb", halo.rectTransform, new Color(1f, 0.84f, 0.32f, 1f));
+            Stretch(orb.rectTransform, 15f);
+            var shine = Circle("Shine", orb.rectTransform, new Color(1f, 0.98f, 0.85f, 0.9f));
+            Anchor(shine.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
+            shine.rectTransform.anchoredPosition = new Vector2(-7f, 7f);
+            shine.rectTransform.sizeDelta = new Vector2(16f, 16f);
+            energyOrb = halo.rectTransform;
+
+            energyLabel = Label(panel, string.Empty, 50f, TextAlignmentOptions.Center);
             Stretch(energyLabel.rectTransform);
+            energyLabel.rectTransform.offsetMin = new Vector2(90f, 0f);
+            energyLabel.rectTransform.offsetMax = new Vector2(-14f, 0f);
+            energyLabel.fontStyle = FontStyles.Bold;
         }
 
         private void BuildToast()
@@ -310,9 +475,39 @@ namespace TinyPlanet.UI
             toastGroup.blocksRaycasts = false;
             toastGroup.interactable = false;
 
+            toastPill = Panel("Pill", holder, new Color(0.05f, 0.07f, 0.14f, 0.8f), 40f);
+            Anchor(toastPill, new Vector2(0.5f, 0f), new Vector2(0.5f, 1f), new Vector2(0.5f, 0.5f));
+            toastPill.sizeDelta = new Vector2(600f, 0f);
+            toastPill.anchoredPosition = Vector2.zero;
+            toastPill.GetComponent<Image>().raycastTarget = false;
+
             toastLabel = Label(holder, string.Empty, 40f, TextAlignmentOptions.Center);
             toastLabel.raycastTarget = false;
             Stretch(toastLabel.rectTransform);
+        }
+
+        private void BuildHint()
+        {
+            hintHolder = Rect("Hint", safeArea);
+            Anchor(hintHolder, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0.5f, 0f));
+            hintHolder.anchoredPosition = new Vector2(0f, 360f);
+            hintHolder.sizeDelta = new Vector2(0f, 84f);
+
+            hintGroup = hintHolder.gameObject.AddComponent<CanvasGroup>();
+            hintGroup.alpha = 0f;
+            hintGroup.blocksRaycasts = false;
+            hintGroup.interactable = false;
+
+            hintPill = Panel("Pill", hintHolder, new Color(0.98f, 0.92f, 0.62f, 0.95f), 42f);
+            Anchor(hintPill, new Vector2(0.5f, 0f), new Vector2(0.5f, 1f), new Vector2(0.5f, 0.5f));
+            hintPill.sizeDelta = new Vector2(600f, 0f);
+            hintPill.anchoredPosition = Vector2.zero;
+            hintPill.GetComponent<Image>().raycastTarget = false;
+
+            hintLabel = Label(hintHolder, string.Empty, 40f, TextAlignmentOptions.Center);
+            hintLabel.color = new Color(0.22f, 0.17f, 0.08f);
+            hintLabel.raycastTarget = false;
+            Stretch(hintLabel.rectTransform);
         }
 
         private void BuildTray(IReadOnlyList<PlantDefinition> plants)
@@ -355,39 +550,58 @@ namespace TinyPlanet.UI
             foreach (var plant in plants)
             {
                 string id = plant.id;
-                var item = TrayButton(content, plant.displayName, string.Format(Strings.CostFormat, plant.seedCost),
+                var item = TrayButton(content, id, plant.displayName, string.Format(Strings.CostFormat, plant.seedCost),
                     plant.primaryColor, ButtonColor, () => Select(id, remove: false));
                 item.PlantId = id;
                 item.Cost = plant.seedCost;
                 items.Add(item);
             }
 
-            var remove = TrayButton(content, Strings.RemoveTool, Strings.RemoveHint, RemoveColor, RemoveColor,
+            var remove = TrayButton(content, null, Strings.RemoveTool, Strings.RemoveHint, RemoveColor, RemoveColor,
                 () => Select(null, remove: true));
             items.Add(remove);
         }
 
-        private TrayItem TrayButton(RectTransform parent, string title, string subtitle, Color swatch, Color frameColor, Action onClick)
+        private TrayItem TrayButton(RectTransform parent, string plantId, string title, string subtitle, Color swatch, Color frameColor, Action onClick)
         {
             var frame = Panel(title, parent, frameColor);
             var element = frame.gameObject.AddComponent<LayoutElement>();
             element.preferredWidth = 200f;
             element.minWidth = 200f;
 
-            var inner = Panel("Inner", frame, ButtonColor);
+            var inner = Panel("Inner", frame, ButtonColor, 18f);
             Stretch(inner, 8f);
             inner.GetComponent<Image>().raycastTarget = false;
 
-            var chip = Panel("Swatch", inner, swatch);
-            Anchor(chip, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0.5f, 1f));
-            chip.anchoredPosition = new Vector2(0f, -16f);
-            chip.sizeDelta = new Vector2(70f, 70f);
-            chip.GetComponent<Image>().raycastTarget = false;
+            var icon = plantId != null ? iconFor?.Invoke(plantId) : null;
+            if (icon != null)
+            {
+                var glow = Circle("Glow", inner, new Color(swatch.r, swatch.g, swatch.b, 0.22f));
+                Anchor(glow.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0.5f, 1f));
+                glow.rectTransform.anchoredPosition = new Vector2(0f, -6f);
+                glow.rectTransform.sizeDelta = new Vector2(88f, 88f);
+
+                var picture = Rect("Icon", inner);
+                Anchor(picture, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0.5f, 1f));
+                picture.anchoredPosition = new Vector2(0f, 0f);
+                picture.sizeDelta = new Vector2(100f, 100f);
+                var image = picture.gameObject.AddComponent<RawImage>();
+                image.texture = icon;
+                image.raycastTarget = false;
+            }
+            else
+            {
+                var chip = Panel("Swatch", inner, swatch, 35f);
+                Anchor(chip, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0.5f, 1f));
+                chip.anchoredPosition = new Vector2(0f, -16f);
+                chip.sizeDelta = new Vector2(70f, 70f);
+                chip.GetComponent<Image>().raycastTarget = false;
+            }
 
             var name = Label(inner, title, 30f, TextAlignmentOptions.Center);
             Anchor(name.rectTransform, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0.5f, 0f));
-            name.rectTransform.anchoredPosition = new Vector2(0f, 46f);
-            name.rectTransform.sizeDelta = new Vector2(0f, 40f);
+            name.rectTransform.anchoredPosition = new Vector2(0f, 44f);
+            name.rectTransform.sizeDelta = new Vector2(0f, 46f);
             name.raycastTarget = false;
 
             var sub = Label(inner, subtitle, 26f, TextAlignmentOptions.Center);
@@ -401,6 +615,7 @@ namespace TinyPlanet.UI
             button.targetGraphic = frame.GetComponent<Image>();
             button.transition = Selectable.Transition.None;
             button.onClick.AddListener(() => onClick());
+            frame.gameObject.AddComponent<PressFeedback>();
 
             return new TrayItem
             {
@@ -441,12 +656,12 @@ namespace TinyPlanet.UI
             levelLabel = levelButton.GetComponentInChildren<TMP_Text>();
             levelLabel.rectTransform.offsetMin = new Vector2(0f, 14f);
 
-            var bar = Panel("Level Bar", rect, new Color(0.12f, 0.15f, 0.25f, 1f));
+            var bar = Panel("Level Bar", rect, new Color(0.12f, 0.15f, 0.25f, 1f), 6f);
             Anchor(bar, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0.5f, 0f));
             bar.anchoredPosition = new Vector2(0f, 10f);
             bar.sizeDelta = new Vector2(-40f, 12f);
             bar.GetComponent<Image>().raycastTarget = false;
-            levelFill = Panel("Fill", bar, new Color(0.45f, 0.85f, 0.45f, 1f));
+            levelFill = Panel("Fill", bar, new Color(0.45f, 0.85f, 0.45f, 1f), 6f);
             levelFill.anchorMin = Vector2.zero;
             levelFill.anchorMax = new Vector2(0f, 1f);
             levelFill.offsetMin = Vector2.zero;
@@ -459,7 +674,7 @@ namespace TinyPlanet.UI
             upgradesRect.anchoredPosition = new Vector2(450f, -145f);
             upgradesRect.sizeDelta = new Vector2(250f, 90f);
 
-            var badge = Panel("Badge", upgradesRect, SelectedColor);
+            var badge = Panel("Badge", upgradesRect, SelectedColor, 15f);
             Anchor(badge, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(0.5f, 0.5f));
             badge.anchoredPosition = new Vector2(-8f, -8f);
             badge.sizeDelta = new Vector2(30f, 30f);
@@ -470,7 +685,7 @@ namespace TinyPlanet.UI
 
         private void BuildBanner()
         {
-            bannerRect = Panel("Discovery Banner", safeArea, new Color(0.05f, 0.07f, 0.14f, 0.92f));
+            bannerRect = Panel("Discovery Banner", safeArea, new Color(0.05f, 0.07f, 0.14f, 0.92f), 40f);
             Anchor(bannerRect, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0.5f, 0.5f));
             bannerRect.anchoredPosition = new Vector2(0f, -400f);
             bannerRect.sizeDelta = new Vector2(840f, 260f);
@@ -481,7 +696,7 @@ namespace TinyPlanet.UI
             bannerGroup.blocksRaycasts = false;
             bannerGroup.interactable = false;
 
-            var accent = Panel("Accent", bannerRect, Color.white);
+            var accent = Panel("Accent", bannerRect, Color.white, 5f);
             TopBand(accent, 0f, 10f);
             bannerAccent = accent.GetComponent<Image>();
             bannerAccent.raycastTarget = false;
@@ -502,7 +717,7 @@ namespace TinyPlanet.UI
             var panel = Rect("Debug", safeArea);
             Anchor(panel, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(1f, 0.5f));
             panel.anchoredPosition = new Vector2(-20f, 120f);
-            panel.sizeDelta = new Vector2(190f, 6f * 78f);
+            panel.sizeDelta = new Vector2(190f, 8f * 78f);
 
             var layout = panel.gameObject.AddComponent<VerticalLayoutGroup>();
             layout.spacing = 8f;
@@ -516,6 +731,8 @@ namespace TinyPlanet.UI
             DebugButton(panel, Strings.DebugSkipHour, () => DebugSkipTime?.Invoke(3600));
             DebugButton(panel, Strings.DebugUnlockAll, () => DebugUnlockAll?.Invoke());
             DebugButton(panel, Strings.DebugNewSeed, () => DebugNewSeed?.Invoke());
+            DebugButton(panel, Strings.DebugNight, () => DebugToggleNight?.Invoke());
+            DebugButton(panel, Strings.DebugRain, () => DebugToggleRain?.Invoke());
             DebugButton(panel, Strings.DebugReset, () => DebugReset?.Invoke());
         }
 

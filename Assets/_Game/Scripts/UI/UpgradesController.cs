@@ -52,7 +52,7 @@ namespace TinyPlanet.UI
         {
             this.simulation = simulation;
 
-            root = Panel("Upgrades", parent, Backdrop);
+            root = Panel("Upgrades", parent, Backdrop, 0f);
             BuildHeader();
             var content = BuildScroll();
             BuildSection(content, Strings.UpgradesLands, entries, biomes: true);
@@ -201,11 +201,11 @@ namespace TinyPlanet.UI
             TopBand(levelLabel.rectTransform, 20f, 70f);
             levelLabel.rectTransform.offsetMin = new Vector2(30f, levelLabel.rectTransform.offsetMin.y);
 
-            var bar = Panel("Bar", card, BarBack);
+            var bar = Panel("Bar", card, BarBack, 18f);
             TopBand(bar, 100f, 36f);
             bar.offsetMin = new Vector2(30f, bar.offsetMin.y);
             bar.offsetMax = new Vector2(-30f, bar.offsetMax.y);
-            barFill = Panel("Fill", bar, BarFill);
+            barFill = Panel("Fill", bar, BarFill, 18f);
             barFill.anchorMin = Vector2.zero;
             barFill.anchorMax = new Vector2(0f, 1f);
             barFill.offsetMin = Vector2.zero;

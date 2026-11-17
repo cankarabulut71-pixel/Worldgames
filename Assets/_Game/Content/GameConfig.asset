@@ -17,7 +17,12 @@ MonoBehaviour:
   planetRadius: 5
   startingEnergy: 20
   maxOfflineHours: 24
-  levelLifeThresholds: 0f000000280000005a000000aa0000002c0100000802000052030000i
+  nightStartHour: 20
+  dayStartHour: 6
+  rainChance: 0.25
+  rainGrowthMultiplier: 1.5
+  goldenChance: 0.03
+  levelLifeThresholds: 1e00000050000000b400000018010000300200007003000014050000i
   newPlanetLevel: 6
   newPlanetCosts: 401f000060ea0000801a060080841e00i
   skyPalettes:
@@ -56,6 +61,8 @@ MonoBehaviour:
   - {fileID: 11400000, guid: b620f72ab1d2ce144b82b69f9fe3a432, type: 2}
   - {fileID: 11400000, guid: 5b9bca29dcd37af4fb091fe650322f82, type: 2}
   - {fileID: 11400000, guid: 8119e4e84dff75d429eab9a747f3bde9, type: 2}
+  - {fileID: 11400000, guid: 76227ef8712f0ef4ca24fcef1723ba79, type: 2}
+  - {fileID: 11400000, guid: 6eeb942cc220fa144a5d4116361ff91b, type: 2}
   creatures:
   - {fileID: 11400000, guid: 9d05ba7378f1b6740a825e18d7de0b64, type: 2}
   - {fileID: 11400000, guid: 1b63b132509308a49b4572b368d2bc58, type: 2}
@@ -69,6 +76,10 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 76072d84107454b439f99153e5b1cc4f, type: 2}
   - {fileID: 11400000, guid: 7ba1f16a7bdac644dbc4c818b9090ae8, type: 2}
   - {fileID: 11400000, guid: befa90739cff7a746a1b5c3e5941617a, type: 2}
+  - {fileID: 11400000, guid: acc9d874958ad154c9c4c65d296414fd, type: 2}
+  - {fileID: 11400000, guid: a8fd5a1e5a67e2a4d9ac7d5e88b74280, type: 2}
+  - {fileID: 11400000, guid: bdf5c0c9e04725940bc3c0395ca44b1d, type: 2}
+  - {fileID: 11400000, guid: 07e453b9f25b99a4d85a5d2b19e178eb, type: 2}
   maxCatchUpChecks: 30
   planetColor: {r: 0.36, g: 0.66, b: 0.3, a: 1}
   cellDotColor: {r: 0.3, g: 0.58, b: 0.25, a: 1}
@@ -83,6 +94,7 @@ MonoBehaviour:
   waterMaterial: {fileID: 2100000, guid: 9b7fd4ea122808d4ca39cf0c14638ac6, type: 2}
   atmosphereMaterial: {fileID: 2100000, guid: 7e2a87e74776f1e4fb773e4c69ba4758, type: 2}
   skyMaterial: {fileID: 2100000, guid: 1c7e0ba6f2735bc4b816499a4df79de9, type: 2}
+  particleMaterial: {fileID: 2100000, guid: 5d1c74bb1d3087d41b0fa506a02f4597, type: 2}
   dormantColor: {r: 0.46, g: 0.46, b: 0.48, a: 1}
   dormantDotColor: {r: 0.4, g: 0.4, b: 0.42, a: 1}
   dormantWaterColor: {r: 0.36, g: 0.4, b: 0.46, a: 1}

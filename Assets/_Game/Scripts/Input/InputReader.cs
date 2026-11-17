@@ -37,6 +37,33 @@ namespace TinyPlanet.GameInput
         /// <summary>A quick press and release without movement, in screen pixels.</summary>
         public event Action<Vector2> Tapped;
 
+        /// <summary>
+        /// Where the player is pointing, for the placement marker: the mouse while it hovers, or a finger that is
+        /// pressing but has not started a drag. False over the UI, while dragging or pinching, or with no pointer.
+        /// </summary>
+        public bool TryGetPointer(out Vector2 position, out bool pressed)
+        {
+            position = default;
+            pressed = false;
+            var touches = Touch.activeTouches;
+            if (touches.Count > 0)
+            {
+                if (touches.Count > 1 || !pressActive || pressOnUi || pressMoved || pressWasMultiTouch) return false;
+                position = touches[0].screenPosition;
+                pressed = true;
+                return true;
+            }
+
+            var mouse = Mouse.current;
+            if (mouse == null) return false;
+            position = mouse.position.ReadValue();
+            pressed = pressActive;
+            if (pressActive && (pressOnUi || pressMoved)) return false;
+            if (!pressActive && IsOverUi(position)) return false;
+            var screen = new Rect(0f, 0f, Screen.width, Screen.height);
+            return screen.Contains(position);
+        }
+
         private float TapMaxPixels => Screen.dpi > 0f ? Screen.dpi * tapMaxInches : 12f;
 
         private void OnEnable() => EnhancedTouchSupport.Enable();
