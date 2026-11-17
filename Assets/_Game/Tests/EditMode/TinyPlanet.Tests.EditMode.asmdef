@@ -3,6 +3,7 @@
     "rootNamespace": "TinyPlanet.Tests",
     "references": [
         "TinyPlanet.Simulation",
+        "TinyPlanet.Game",
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner"
     ],

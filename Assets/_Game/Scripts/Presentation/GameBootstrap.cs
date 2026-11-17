@@ -77,7 +77,10 @@ namespace TinyPlanet.Presentation
             }
             var save = game.Active;
             activeIndex = game.planets.IndexOf(save);
-            clock = new OffsetClock(new SystemClock(), game.debugClockOffsetSeconds);
+            // The device clock, guarded so moving the date in the settings doesn't fast-forward the garden.
+            if (game.clock == null) game.clock = new ClockState();
+            var trusted = new TrustedClock(new SystemClock(), () => DeviceUptime.Ticks, game.clock);
+            clock = new OffsetClock(trusted, game.debugClockOffsetSeconds);
 
             pool = BuildPool();
             recipe = RecipeFor(activeIndex);
@@ -300,7 +303,11 @@ namespace TinyPlanet.Presentation
         private void OnApplicationPause(bool paused)
         {
             if (paused) Save();
-            else simulation?.Tick();
+            else
+            {
+                DeviceUptime.Refresh();
+                simulation?.Tick();
+            }
         }
 
         private void OnApplicationFocus(bool focused)

@@ -65,6 +65,10 @@ namespace TinyPlanet.Simulation
         public int version = CurrentVersion;
         public int activePlanet;
         public double debugClockOffsetSeconds;
+
+        /// <summary>The game clock's memory, so moving the device clock can't fast-forward the garden.</summary>
+        public ClockState clock = new ClockState();
+
         public List<SaveData> planets = new List<SaveData>();
 
         public SaveData Active => planets.Count > 0 ? planets[Math.Max(0, Math.Min(activePlanet, planets.Count - 1))] : null;
@@ -127,6 +131,7 @@ namespace TinyPlanet.Simulation
                 }
                 if (planets.Count == 0) return null;
                 data.planets = planets;
+                if (data.clock == null) data.clock = new ClockState();
                 data.activePlanet = Math.Max(0, Math.Min(data.activePlanet, planets.Count - 1));
                 return data;
             }
