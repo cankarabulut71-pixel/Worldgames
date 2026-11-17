@@ -39,9 +39,9 @@ namespace TinyPlanet.Tests
 
         private static PlanetSimulation NewSim(ManualClock clock, double startingEnergy = 100, SaveData save = null)
         {
-            var planet = PlanetGenerator.Generate(7, Cells);
+            var planet = TestPlanets.Land(7, Cells);
             var economy = new EconomySettings { StartingEnergy = startingEnergy, MaxOfflineHours = 24 };
-            return new PlanetSimulation(planet, new[] { Grass(), Tree() }, economy, clock, save);
+            return new PlanetSimulation(planet, new[] { Grass(), Tree() }, null, economy, clock, save);
         }
 
         [Test]

@@ -7,6 +7,7 @@ namespace TinyPlanet.Simulation
     public static class PlanetGenerator
     {
         private const int FieldLobes = 4;
+        private const float WaterFraction = 0.07f;
 
         public static Planet Generate(int seed, int cellCount)
         {
@@ -28,7 +29,26 @@ namespace TinyPlanet.Simulation
                 };
             }
 
+            MarkWater(cells);
             return new Planet(seed, grid, cells);
+        }
+
+        // The dampest cells become ponds. The moisture field is smooth, so they form a few round pools.
+        private static void MarkWater(CellData[] cells)
+        {
+            int waterCount = (int)Math.Round(cells.Length * WaterFraction);
+            if (waterCount <= 0) return;
+
+            var order = new int[cells.Length];
+            for (int i = 0; i < order.Length; i++) order[i] = i;
+            Array.Sort(order, (a, b) =>
+            {
+                int byMoisture = cells[b].Moisture.CompareTo(cells[a].Moisture);
+                return byMoisture != 0 ? byMoisture : a.CompareTo(b);
+            });
+
+            for (int i = 0; i < waterCount; i++)
+                cells[order[i]].Water = true;
         }
 
         // A smooth scalar field on the sphere: a few random directions, each pulling the value up or down.

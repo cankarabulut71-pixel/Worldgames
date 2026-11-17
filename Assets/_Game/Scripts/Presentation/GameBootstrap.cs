@@ -23,6 +23,12 @@ namespace TinyPlanet.Presentation
         [SerializeField] private Light keyLight;
 
         private readonly Dictionary<string, PlantDefinition> definitions = new Dictionary<string, PlantDefinition>();
+        private readonly Dictionary<string, CreatureDefinition> creatureDefinitions = new Dictionary<string, CreatureDefinition>();
+        private readonly Dictionary<string, Texture> icons = new Dictionary<string, Texture>();
+        private readonly Dictionary<string, Texture> silhouettes = new Dictionary<string, Texture>();
+        private MaterialLibrary materials;
+        private CreatureLayer creatureLayer;
+        private CodexController codex;
         private OffsetClock clock;
         private PlanetSimulation simulation;
         private PlanetView planetView;
@@ -51,17 +57,30 @@ namespace TinyPlanet.Presentation
                 specs.Add(plant.ToSpec());
             }
 
+            var creatureSpecs = new List<CreatureSpec>();
+            foreach (var creature in config.creatures ?? Array.Empty<CreatureDefinition>())
+            {
+                if (creature == null) continue;
+                creatureDefinitions[creature.id] = creature;
+                creatureSpecs.Add(creature.ToSpec());
+            }
+
             var economy = new EconomySettings
             {
                 StartingEnergy = config.startingEnergy,
                 MaxOfflineHours = config.maxOfflineHours,
+                MaxCatchUpChecks = config.maxCatchUpChecks,
             };
-            simulation = new PlanetSimulation(planet, specs, economy, clock, save);
+            simulation = new PlanetSimulation(planet, specs, creatureSpecs, economy, clock, save);
 
-            var materials = new MaterialLibrary(config.litMaterial, config.unlitMaterial);
+            materials = new MaterialLibrary(config.litMaterial, config.unlitMaterial);
 
             planetView = new GameObject("Planet").AddComponent<PlanetView>();
             planetView.Init(simulation, config, materials);
+
+            creatureLayer = new GameObject("Creatures").AddComponent<CreatureLayer>();
+            creatureLayer.transform.SetParent(planetView.transform, false);
+            creatureLayer.Init(simulation, config, materials);
 
             gameCamera.clearFlags = CameraClearFlags.SolidColor;
             gameCamera.backgroundColor = config.spaceColor;
@@ -81,6 +100,14 @@ namespace TinyPlanet.Presentation
             hud.DebugAddEnergy += () => simulation.AddEnergy(100);
             hud.DebugSkipTime += SkipTime;
             hud.DebugReset += ResetProgress;
+
+            codex = hud.gameObject.AddComponent<CodexController>();
+            codex.Init(hud.SafeArea, simulation, BuildCodexEntries(), IconFor);
+            hud.CodexClicked += codex.Open;
+            UpdateCodexProgress();
+            simulation.SpeciesDiscovered += OnSpeciesDiscovered;
+            simulation.CreatureArrived += _ => codex.Refresh();
+            simulation.CreatureLeft += _ => codex.Refresh();
 
             var input = gameObject.AddComponent<InputReader>();
             input.Dragged += orbit.Drag;
@@ -125,6 +152,16 @@ namespace TinyPlanet.Presentation
 
         private void OnTapped(Vector2 screenPosition)
         {
+            // Creatures first: they are small and stand on top of cells the player might otherwise plant on.
+            float pickRadius = 45f * Mathf.Max(1f, Screen.dpi / 160f);
+            if (creatureLayer.TryPick(gameCamera, screenPosition, pickRadius, out var creature))
+            {
+                creature.React();
+                var definition = creature.Definition;
+                hud.ShowToast(string.Format(Strings.CreatureTapFormat, definition.displayName, Strings.Rarity(definition.rarity)));
+                return;
+            }
+
             if (!planetView.TryGetCell(gameCamera.ScreenPointToRay(screenPosition), out int cell)) return;
 
             var existing = simulation.PlantAt(cell);
@@ -150,6 +187,87 @@ namespace TinyPlanet.Presentation
 
             var result = simulation.TryPlant(cell, hud.SelectedPlantId);
             if (result == PlantResult.NotEnoughEnergy) hud.ShowToast(Strings.NotEnoughEnergy);
+            else if (result == PlantResult.Water) hud.ShowToast(Strings.WaterHere);
+        }
+
+        private void OnSpeciesDiscovered(string id, int reward)
+        {
+            if (creatureDefinitions.TryGetValue(id, out var creature))
+            {
+                string heading = creature.rarity >= Rarity.Rare
+                    ? string.Format(Strings.NewRareCreatureFormat, Strings.Rarity(creature.rarity).ToLowerInvariant())
+                    : Strings.NewCreature;
+                hud.ShowDiscovery(heading, creature.displayName, reward, CodexController.RarityColor(creature.rarity));
+            }
+            else if (definitions.TryGetValue(id, out var plant))
+            {
+                hud.ShowDiscovery(Strings.NewPlant, plant.displayName, reward, plant.primaryColor);
+            }
+            UpdateCodexProgress();
+            codex.Refresh();
+        }
+
+        private void UpdateCodexProgress()
+        {
+            var (found, total) = codex.Progress();
+            hud.SetCodexProgress(found, total);
+        }
+
+        private List<CodexEntry> BuildCodexEntries()
+        {
+            var entries = new List<CodexEntry>();
+            foreach (var plant in config.plants)
+            {
+                entries.Add(new CodexEntry
+                {
+                    Id = plant.id, Name = plant.displayName, Hint = plant.hint, Description = plant.description,
+                });
+            }
+            foreach (var creature in config.creatures ?? Array.Empty<CreatureDefinition>())
+            {
+                if (creature == null) continue;
+                entries.Add(new CodexEntry
+                {
+                    Id = creature.id, Name = creature.displayName, Hint = creature.hint, Description = creature.description,
+                    IsCreature = true, Rarity = creature.rarity,
+                });
+            }
+            return entries;
+        }
+
+        private Texture IconFor(string id, bool silhouette)
+        {
+            if (silhouette)
+            {
+                if (silhouettes.TryGetValue(id, out var shape)) return shape;
+                if (!(IconFor(id, false) is RenderTexture full)) return null;
+                shape = IconRenderer.Silhouette(full);
+                silhouettes[id] = shape;
+                return shape;
+            }
+
+            if (icons.TryGetValue(id, out var icon)) return icon;
+
+            GameObject model = null;
+            if (definitions.TryGetValue(id, out var plant))
+            {
+                model = new GameObject(plant.displayName);
+                var view = model.AddComponent<PlantView>();
+                view.Build(plant, config, materials);
+                view.Show(PlantStage.Mature, animate: false);
+            }
+            else if (creatureDefinitions.TryGetValue(id, out var creature))
+            {
+                model = new GameObject(creature.displayName);
+                var view = model.AddComponent<CreatureView>();
+                view.Build(creature, materials);
+                view.PoseForIcon();
+            }
+            if (model == null) return null;
+
+            icon = IconRenderer.Render(model, gameCamera.transform.rotation);
+            icons[id] = icon;
+            return icon;
         }
 
         private void DescribePlant(PlantInstance plant)

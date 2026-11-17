@@ -19,6 +19,9 @@ MonoBehaviour:
   refundFraction: 0.5
   seedSeconds: 8
   sproutSeconds: 15
+  hint: The humblest seed. Try a few side by side.
+  description: Soft tufts that spread a cosy carpet. Small things love to hide in it.
+  discoveryReward: 5
   shape: 0
   primaryColor: {r: 0.55, g: 0.85, b: 0.3, a: 1}
   secondaryColor: {r: 1, g: 1, b: 1, a: 1}

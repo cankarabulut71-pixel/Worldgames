@@ -19,6 +19,9 @@ MonoBehaviour:
   refundFraction: 0.5
   seedSeconds: 30
   sproutSeconds: 60
+  hint: A splash of colour. Who might it attract?
+  description: Bright blossoms full of sweet nectar. Lovely in little clusters.
+  discoveryReward: 5
   shape: 1
   primaryColor: {r: 0.25, g: 0.62, b: 0.25, a: 1}
   secondaryColor: {r: 0.98, g: 0.45, b: 0.7, a: 1}

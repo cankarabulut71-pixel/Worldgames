@@ -28,6 +28,12 @@ namespace TinyPlanet.Data
         [Min(0)] public float seedSeconds = 10f;
         [Min(0)] public float sproutSeconds = 20f;
 
+        [Header("Codex")]
+        [Tooltip("Shown until the first one of these grows up.")]
+        public string hint = "Plant one and let it grow.";
+        [TextArea] public string description = "";
+        [Min(0)] public int discoveryReward = 5;
+
         [Header("Placeholder look")]
         public PlantShape shape = PlantShape.Grass;
         public Color primaryColor = Color.green;
@@ -42,6 +48,7 @@ namespace TinyPlanet.Data
             SproutSeconds = sproutSeconds,
             EnergyPerMinute = energyPerMinute,
             RefundFraction = refundFraction,
+            DiscoveryReward = discoveryReward,
         };
     }
 }

@@ -18,6 +18,7 @@ namespace TinyPlanet.Simulation
         public float SproutSeconds;
         public float EnergyPerMinute;
         public float RefundFraction;
+        public int DiscoveryReward;
 
         public double SecondsToMature => (double)SeedSeconds + SproutSeconds;
     }

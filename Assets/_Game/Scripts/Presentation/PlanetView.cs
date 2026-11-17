@@ -30,6 +30,7 @@ namespace TinyPlanet.Presentation
 
             BuildSurface();
             BuildCellDots();
+            BuildWater();
 
             long now = simulation.NowUtcTicks;
             foreach (var plant in simulation.Plants)
@@ -131,15 +132,20 @@ namespace TinyPlanet.Presentation
         // One small marker per cell, all in a single mesh, so the player can see where plants will land.
         private void BuildCellDots()
         {
-            var grid = simulation.Planet.Grid;
-            int count = grid.CellCount;
+            var planet = simulation.Planet;
+            var grid = planet.Grid;
             const float halfSize = 0.07f;
 
-            var vertices = new Vector3[count * 4];
-            var triangles = new int[count * 6];
-            for (int i = 0; i < count; i++)
+            var vertices = new List<Vector3>();
+            var triangles = new List<int>();
+            for (int cell = 0; cell < grid.CellCount; cell++)
             {
-                Vector3 normal = grid.Direction(i);
+                if (planet.IsWater(cell)) continue;
+                int i = vertices.Count / 4;
+                vertices.AddRange(new Vector3[4]);
+                triangles.AddRange(new int[6]);
+
+                Vector3 normal = grid.Direction(cell);
                 Vector3 tangent = Vector3.Cross(normal, Mathf.Abs(normal.y) < 0.9f ? Vector3.up : Vector3.right).normalized;
                 Vector3 bitangent = Vector3.Cross(normal, tangent);
                 Vector3 centre = normal * (Radius + 0.012f);
@@ -165,6 +171,55 @@ namespace TinyPlanet.Presentation
             dots.AddComponent<MeshFilter>().sharedMesh = mesh;
             var renderer = dots.AddComponent<MeshRenderer>();
             renderer.sharedMaterial = materials.Unlit(config.cellDotColor);
+            renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        }
+
+        // Each water cell gets a flat disc a bit wider than the cell, so neighbouring discs merge into ponds.
+        private void BuildWater()
+        {
+            var planet = simulation.Planet;
+            var grid = planet.Grid;
+            const int segments = 12;
+            // Wide enough to close the gaps where three discs meet, short of the neighbouring land cells' centres.
+            float discRadius = Radius * Mathf.Sqrt(4f * Mathf.PI / grid.CellCount) * 0.85f;
+
+            var vertices = new List<Vector3>();
+            var triangles = new List<int>();
+            for (int cell = 0; cell < grid.CellCount; cell++)
+            {
+                if (!planet.IsWater(cell)) continue;
+
+                Vector3 normal = grid.Direction(cell);
+                Vector3 tangent = Vector3.Cross(normal, Mathf.Abs(normal.y) < 0.9f ? Vector3.up : Vector3.right).normalized;
+                Vector3 bitangent = Vector3.Cross(normal, tangent);
+
+                int centre = vertices.Count;
+                vertices.Add(normal * (Radius + 0.015f));
+                for (int s = 0; s < segments; s++)
+                {
+                    float angle = s * Mathf.PI * 2f / segments;
+                    Vector3 rim = normal * Radius + (tangent * Mathf.Cos(angle) + bitangent * Mathf.Sin(angle)) * discRadius;
+                    vertices.Add(rim.normalized * (Radius + 0.015f));
+                }
+                for (int s = 0; s < segments; s++)
+                {
+                    triangles.Add(centre);
+                    triangles.Add(centre + 1 + s);
+                    triangles.Add(centre + 1 + (s + 1) % segments);
+                }
+            }
+            if (vertices.Count == 0) return;
+
+            var mesh = new Mesh { name = "Water" };
+            mesh.SetVertices(vertices);
+            mesh.SetTriangles(triangles, 0);
+            mesh.RecalculateBounds();
+
+            var water = new GameObject("Water");
+            water.transform.SetParent(transform, false);
+            water.AddComponent<MeshFilter>().sharedMesh = mesh;
+            var renderer = water.AddComponent<MeshRenderer>();
+            renderer.sharedMaterial = materials.Unlit(config.waterColor);
             renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
         }
     }

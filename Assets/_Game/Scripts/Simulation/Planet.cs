@@ -11,6 +11,9 @@ namespace TinyPlanet.Simulation
         public BiomeType Biome;
         public float Moisture;
         public float Fertility;
+
+        /// <summary>Pond water: nothing can be planted here, but some creatures like to live nearby.</summary>
+        public bool Water;
     }
 
     /// <summary>A generated planet: fully determined by its seed and cell count.</summary>
@@ -26,5 +29,7 @@ namespace TinyPlanet.Simulation
         public int Seed { get; }
         public PlanetGrid Grid { get; }
         public CellData[] Cells { get; }
+
+        public bool IsWater(int cell) => Cells[cell].Water;
     }
 }

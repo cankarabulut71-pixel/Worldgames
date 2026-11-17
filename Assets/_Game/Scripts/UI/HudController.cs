@@ -7,6 +7,7 @@ using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem.UI;
 using UnityEngine.UI;
+using static TinyPlanet.UI.UiFactory;
 
 namespace TinyPlanet.UI
 {
@@ -16,9 +17,6 @@ namespace TinyPlanet.UI
     /// </summary>
     public sealed class HudController : MonoBehaviour
     {
-        private static readonly Color PanelColor = new Color(0.05f, 0.07f, 0.14f, 0.72f);
-        private static readonly Color ButtonColor = new Color(0.16f, 0.20f, 0.32f, 1f);
-        private static readonly Color SelectedColor = new Color(0.98f, 0.82f, 0.30f, 1f);
         private static readonly Color RemoveColor = new Color(0.78f, 0.30f, 0.28f, 1f);
 
         private sealed class TrayItem
@@ -39,11 +37,25 @@ namespace TinyPlanet.UI
         private CanvasGroup toastGroup;
         private float toastTimeLeft;
         private long shownEnergy = long.MinValue;
+        private TMP_Text codexLabel;
+        private readonly Queue<(string heading, string name, int reward, Color accent)> banners =
+            new Queue<(string heading, string name, int reward, Color accent)>();
+        private RectTransform bannerRect;
+        private CanvasGroup bannerGroup;
+        private Image bannerAccent;
+        private TMP_Text bannerHeading;
+        private TMP_Text bannerName;
+        private TMP_Text bannerReward;
+        private float bannerTime = -1f;
 
         /// <summary>The plant id the player has picked in the tray, or null in remove mode.</summary>
         public string SelectedPlantId { get; private set; }
         public bool RemoveMode { get; private set; }
 
+        /// <summary>Full-screen area inside the notch and home bar, for other screens to build into.</summary>
+        public RectTransform SafeArea => safeArea;
+
+        public event Action CodexClicked;
         public event Action DebugAddEnergy;
         public event Action<double> DebugSkipTime;
         public event Action DebugReset;
@@ -57,6 +69,8 @@ namespace TinyPlanet.UI
             BuildEnergy();
             BuildToast();
             BuildTray(config);
+            BuildCodexButton();
+            BuildBanner();
             if (showDebug) BuildDebug();
 
             if (config.plants.Length > 0) Select(config.plants[0].id, remove: false);
@@ -71,6 +85,60 @@ namespace TinyPlanet.UI
             toastGroup.alpha = 1f;
         }
 
+        public void SetCodexProgress(int found, int total)
+        {
+            codexLabel.text = string.Format(Strings.CodexButtonFormat, found, total);
+        }
+
+        /// <summary>The celebration for a first discovery. Several in a row are shown one after another.</summary>
+        public void ShowDiscovery(string heading, string name, int reward, Color accent)
+        {
+            banners.Enqueue((heading, name, reward, accent));
+            if (bannerTime < 0f) NextBanner();
+        }
+
+        private void NextBanner()
+        {
+            if (banners.Count == 0)
+            {
+                bannerTime = -1f;
+                bannerGroup.alpha = 0f;
+                return;
+            }
+
+            var (heading, name, reward, accent) = banners.Dequeue();
+            bannerHeading.text = heading;
+            bannerHeading.color = accent;
+            bannerName.text = name;
+            bannerReward.text = reward > 0 ? string.Format(Strings.RewardFormat, reward) : string.Empty;
+            bannerAccent.color = accent;
+            bannerRect.SetAsLastSibling();
+            bannerTime = 0f;
+        }
+
+        private void UpdateBanner()
+        {
+            if (bannerTime < 0f) return;
+            bannerTime += Time.unscaledDeltaTime;
+
+            const float popIn = 0.35f, hold = 2.6f, fade = 0.4f;
+            float t = bannerTime;
+            if (t < popIn)
+            {
+                float u = t / popIn - 1f;
+                float eased = 1f + 3.2f * u * u * u + 2.2f * u * u;
+                bannerRect.localScale = Vector3.one * Mathf.LerpUnclamped(0.6f, 1f, eased);
+                bannerGroup.alpha = Mathf.Clamp01(t / (popIn * 0.5f));
+            }
+            else
+            {
+                bannerRect.localScale = Vector3.one;
+                bannerGroup.alpha = 1f - Mathf.Clamp01((t - popIn - hold) / fade);
+            }
+
+            if (t >= popIn + hold + fade) NextBanner();
+        }
+
         private void OnDestroy()
         {
             if (simulation != null) simulation.EnergyChanged -= OnEnergyChanged;
@@ -83,6 +151,8 @@ namespace TinyPlanet.UI
             // Portrait screens scale the HUD by width, landscape ones (the Editor, tablets) by height.
             float match = Screen.width < Screen.height ? 0f : 1f;
             if (!Mathf.Approximately(scaler.matchWidthOrHeight, match)) scaler.matchWidthOrHeight = match;
+
+            UpdateBanner();
 
             if (toastTimeLeft > 0f)
             {
@@ -276,6 +346,44 @@ namespace TinyPlanet.UI
             };
         }
 
+        private void BuildCodexButton()
+        {
+            var button = TextButton(safeArea, string.Empty, 38f, PanelColor, () => CodexClicked?.Invoke());
+            var rect = (RectTransform)button.transform;
+            Anchor(rect, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f));
+            rect.anchoredPosition = new Vector2(450f, -30f);
+            rect.sizeDelta = new Vector2(250f, 100f);
+            codexLabel = button.GetComponentInChildren<TMP_Text>();
+        }
+
+        private void BuildBanner()
+        {
+            bannerRect = Panel("Discovery Banner", safeArea, new Color(0.05f, 0.07f, 0.14f, 0.92f));
+            Anchor(bannerRect, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0.5f, 0.5f));
+            bannerRect.anchoredPosition = new Vector2(0f, -400f);
+            bannerRect.sizeDelta = new Vector2(840f, 260f);
+            bannerRect.GetComponent<Image>().raycastTarget = false;
+
+            bannerGroup = bannerRect.gameObject.AddComponent<CanvasGroup>();
+            bannerGroup.alpha = 0f;
+            bannerGroup.blocksRaycasts = false;
+            bannerGroup.interactable = false;
+
+            var accent = Panel("Accent", bannerRect, Color.white);
+            TopBand(accent, 0f, 10f);
+            bannerAccent = accent.GetComponent<Image>();
+            bannerAccent.raycastTarget = false;
+
+            bannerHeading = Label(bannerRect, string.Empty, 38f, TextAlignmentOptions.Center);
+            TopBand(bannerHeading.rectTransform, 30f, 50f);
+            bannerName = Label(bannerRect, string.Empty, 72f, TextAlignmentOptions.Center);
+            bannerName.fontStyle = FontStyles.Bold;
+            TopBand(bannerName.rectTransform, 85f, 90f);
+            bannerReward = Label(bannerRect, string.Empty, 38f, TextAlignmentOptions.Center);
+            bannerReward.color = SelectedColor;
+            TopBand(bannerReward.rectTransform, 185f, 50f);
+        }
+
         private void BuildDebug()
         {
             var panel = Rect("Debug", safeArea);
@@ -306,54 +414,6 @@ namespace TinyPlanet.UI
             var button = frame.gameObject.AddComponent<Button>();
             button.targetGraphic = frame.GetComponent<Image>();
             button.onClick.AddListener(() => onClick());
-        }
-
-        // ---------- small uGUI helpers ----------
-
-        private static RectTransform Rect(string name, Transform parent)
-        {
-            var go = new GameObject(name, typeof(RectTransform));
-            go.layer = LayerMask.NameToLayer("UI");
-            var rect = (RectTransform)go.transform;
-            rect.SetParent(parent, false);
-            Stretch(rect);
-            return rect;
-        }
-
-        private static RectTransform Panel(string name, Transform parent, Color color)
-        {
-            var rect = Rect(name, parent);
-            rect.gameObject.AddComponent<Image>().color = color;
-            return rect;
-        }
-
-        private static TMP_Text Label(Transform parent, string text, float size, TextAlignmentOptions alignment)
-        {
-            var rect = Rect("Label", parent);
-            var label = rect.gameObject.AddComponent<TextMeshProUGUI>();
-            label.text = text;
-            label.fontSize = size;
-            label.alignment = alignment;
-            label.color = Color.white;
-            label.textWrappingMode = TextWrappingModes.NoWrap;
-            label.overflowMode = TextOverflowModes.Ellipsis;
-            return label;
-        }
-
-        private static void Stretch(RectTransform rect, float inset = 0f)
-        {
-            rect.anchorMin = Vector2.zero;
-            rect.anchorMax = Vector2.one;
-            rect.pivot = new Vector2(0.5f, 0.5f);
-            rect.offsetMin = new Vector2(inset, inset);
-            rect.offsetMax = new Vector2(-inset, -inset);
-        }
-
-        private static void Anchor(RectTransform rect, Vector2 min, Vector2 max, Vector2 pivot)
-        {
-            rect.anchorMin = min;
-            rect.anchorMax = max;
-            rect.pivot = pivot;
         }
     }
 }

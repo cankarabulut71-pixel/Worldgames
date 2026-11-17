@@ -14,6 +14,37 @@ namespace TinyPlanet.UI
         public const string MatureFormat = "{0} - {1} energy/min";
         public const string WelcomeBackFormat = "Welcome back!  +{0} energy";
 
+        public const string WaterHere = "That's water - plant on land";
+
+        public const string CodexButtonFormat = "Codex  {0}/{1}";
+        public const string CodexTitle = "Codex";
+        public const string CodexProgressFormat = "{0} of {1} found  -  {2}%";
+        public const string CodexClose = "Close";
+        public const string CodexPlants = "Plants";
+        public const string CodexCreatures = "Creatures";
+        public const string Unknown = "???";
+        public const string Plant = "Plant";
+        public const string LivingHereFormat = "Living here now: {0}";
+        public const string GrowingHereFormat = "Growing here now: {0}";
+        public const string NotFoundYet = "Not found yet";
+
+        public const string NewPlant = "New plant grown!";
+        public const string NewCreature = "New creature discovered!";
+        public const string NewRareCreatureFormat = "A {0} creature appeared!";
+        public const string RewardFormat = "+{0} energy";
+        public const string CreatureTapFormat = "{0}  -  {1}";
+
+        public static string Rarity(TinyPlanet.Simulation.Rarity rarity)
+        {
+            switch (rarity)
+            {
+                case TinyPlanet.Simulation.Rarity.Uncommon: return "Uncommon";
+                case TinyPlanet.Simulation.Rarity.Rare: return "Rare";
+                case TinyPlanet.Simulation.Rarity.Legendary: return "Legendary";
+                default: return "Common";
+            }
+        }
+
         public const string DebugAddEnergy = "+100";
         public const string DebugSkipMinute = "+1 min";
         public const string DebugSkipHour = "+1 hour";

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace TinyPlanet.Simulation
@@ -13,6 +14,7 @@ namespace TinyPlanet.Simulation
 
         private readonly Vector3[] directions;
         private readonly int[][] neighbours;
+        private readonly Dictionary<long, int[]> areaCache = new Dictionary<long, int[]>();
 
         public PlanetGrid(int cellCount)
         {
@@ -31,6 +33,37 @@ namespace TinyPlanet.Simulation
         public int[] Neighbours(int cell) => neighbours[cell];
 
         public bool IsValid(int cell) => cell >= 0 && cell < directions.Length;
+
+        /// <summary>
+        /// The cell itself plus every cell reachable in at most <paramref name="radius"/> neighbour steps.
+        /// Results are cached, so rules can call this freely.
+        /// </summary>
+        public IReadOnlyList<int> CellsWithin(int cell, int radius)
+        {
+            if (radius < 0) radius = 0;
+            long key = ((long)cell << 8) | (uint)Math.Min(radius, 255);
+            if (areaCache.TryGetValue(key, out var cached)) return cached;
+
+            var result = new List<int> { cell };
+            var seen = new HashSet<int> { cell };
+            int frontierStart = 0;
+            for (int step = 0; step < radius; step++)
+            {
+                int frontierEnd = result.Count;
+                for (int i = frontierStart; i < frontierEnd; i++)
+                {
+                    foreach (int next in neighbours[result[i]])
+                    {
+                        if (seen.Add(next)) result.Add(next);
+                    }
+                }
+                frontierStart = frontierEnd;
+            }
+
+            var array = result.ToArray();
+            areaCache[key] = array;
+            return array;
+        }
 
         /// <summary>The cell whose centre is closest to the given direction.</summary>
         public int FindNearestCell(Vector3 direction)

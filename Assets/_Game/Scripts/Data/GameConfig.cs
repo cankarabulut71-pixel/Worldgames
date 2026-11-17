@@ -17,6 +17,8 @@ namespace TinyPlanet.Data
 
         [Header("Content")]
         public PlantDefinition[] plants;
+        public CreatureDefinition[] creatures;
+        [Min(0)] public int maxCatchUpChecks = 30;
 
         [Header("Placeholder look")]
         public Color planetColor = new Color(0.36f, 0.66f, 0.30f);
@@ -24,6 +26,7 @@ namespace TinyPlanet.Data
         public Color spaceColor = new Color(0.03f, 0.04f, 0.10f);
         public Color soilColor = new Color(0.40f, 0.27f, 0.16f);
         public Color woodColor = new Color(0.45f, 0.30f, 0.18f);
+        public Color waterColor = new Color(0.24f, 0.55f, 0.85f);
 
         [Header("Materials (kept as assets so their shaders are included in builds)")]
         public Material litMaterial;

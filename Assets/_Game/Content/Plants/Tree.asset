@@ -19,6 +19,9 @@ MonoBehaviour:
   refundFraction: 0.5
   seedSeconds: 120
   sproutSeconds: 300
+  hint: Slow to grow, but worth the wait.
+  description: A sturdy old friend. Its branches make a home for many.
+  discoveryReward: 5
   shape: 2
   primaryColor: {r: 0.13, g: 0.5, b: 0.22, a: 1}
   secondaryColor: {r: 0.22, g: 0.62, b: 0.28, a: 1}

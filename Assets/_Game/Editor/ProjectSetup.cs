@@ -59,6 +59,9 @@ namespace TinyPlanet.EditorTools
                 };
             }
 
+            AddCodexText(config);
+            if (config.creatures == null || config.creatures.Length == 0) config.creatures = CreateCreatures(config);
+
             EditorUtility.SetDirty(config);
             AssetDatabase.SaveAssets();
 
@@ -71,6 +74,117 @@ namespace TinyPlanet.EditorTools
 
             AssetDatabase.SaveAssets();
             Debug.Log("Tiny Planet: project set up. Open " + ScenePath + " and press Play.");
+        }
+
+        // Plant assets from milestone 1 predate the codex; give them text once, leaving edited text alone.
+        private static void AddCodexText(GameConfig config)
+        {
+            const string defaultHint = "Plant one and let it grow.";
+            foreach (var plant in config.plants)
+            {
+                if (plant == null || (plant.hint != defaultHint && !string.IsNullOrEmpty(plant.description))) continue;
+                switch (plant.id)
+                {
+                    case "grass":
+                        plant.hint = "The humblest seed. Try a few side by side.";
+                        plant.description = "Soft tufts that spread a cosy carpet. Small things love to hide in it.";
+                        break;
+                    case "flower":
+                        plant.hint = "A splash of colour. Who might it attract?";
+                        plant.description = "Bright blossoms full of sweet nectar. Lovely in little clusters.";
+                        break;
+                    case "tree":
+                        plant.hint = "Slow to grow, but worth the wait.";
+                        plant.description = "A sturdy old friend. Its branches make a home for many.";
+                        break;
+                }
+                EditorUtility.SetDirty(plant);
+            }
+        }
+
+        private static CreatureDefinition[] CreateCreatures(GameConfig config)
+        {
+            const string folder = ContentFolder + "/Creatures";
+            Directory.CreateDirectory(folder);
+            AssetDatabase.Refresh();
+
+            PlantDefinition Plant(string id) => System.Array.Find(config.plants, p => p != null && p.id == id);
+
+            SpawnConditionData Nearby(string plant, int count, int radius) => new SpawnConditionData
+            {
+                kind = ConditionKind.PlantsNearby, plant = Plant(plant), count = count, radius = radius,
+            };
+
+            var hopper = LoadOrCreate<CreatureDefinition>(folder + "/Tufthopper.asset", c =>
+            {
+                c.id = "tufthopper"; c.displayName = "Tufthopper"; c.rarity = Simulation.Rarity.Common;
+                c.hint = "Hides in thick tufts.";
+                c.description = "A shy, springy nibbler. It only feels safe when grass is all around it.";
+                c.discoveryReward = 15;
+                c.conditions = new[] { Nearby("grass", 3, 1) };
+                c.checkIntervalSeconds = 8f; c.chancePerCheck = 0.35f; c.populationCap = 3; c.leaveAfterSeconds = 90f;
+                c.shape = CreatureShape.Hopper; c.primaryColor = new Color(0.86f, 0.72f, 0.52f); c.secondaryColor = new Color(0.98f, 0.95f, 0.90f);
+                c.size = 1f; c.moveSpeed = 0.7f; c.wanderRadius = 2;
+            });
+
+            var flutter = LoadOrCreate<CreatureDefinition>(folder + "/Petalwing.asset", c =>
+            {
+                c.id = "petalwing"; c.displayName = "Petalwing"; c.rarity = Simulation.Rarity.Common;
+                c.hint = "Never settles for a lonely bloom.";
+                c.description = "Drifts from blossom to blossom, sipping nectar. Where there are flowers in company, there are petalwings.";
+                c.discoveryReward = 20;
+                c.conditions = new[] { Nearby("flower", 2, 1) };
+                c.checkIntervalSeconds = 10f; c.chancePerCheck = 0.3f; c.populationCap = 3; c.leaveAfterSeconds = 90f;
+                c.shape = CreatureShape.Flutter; c.primaryColor = new Color(1f, 0.62f, 0.25f); c.secondaryColor = new Color(0.25f, 0.18f, 0.15f);
+                c.size = 1f; c.moveSpeed = 0.9f; c.wanderRadius = 2;
+            });
+
+            var newt = LoadOrCreate<CreatureDefinition>(folder + "/Mudnewt.asset", c =>
+            {
+                c.id = "mudnewt"; c.displayName = "Mudnewt"; c.rarity = Simulation.Rarity.Common;
+                c.hint = "Basks where green meets blue.";
+                c.description = "A sleepy little newt that suns itself on grassy banks, never far from a pond.";
+                c.discoveryReward = 20;
+                c.conditions = new[]
+                {
+                    new SpawnConditionData { kind = ConditionKind.NearWater, radius = 1 },
+                    Nearby("grass", 2, 1),
+                };
+                c.checkIntervalSeconds = 10f; c.chancePerCheck = 0.3f; c.populationCap = 2; c.leaveAfterSeconds = 90f;
+                c.shape = CreatureShape.Crawler; c.primaryColor = new Color(0.40f, 0.68f, 0.45f); c.secondaryColor = new Color(0.98f, 0.80f, 0.30f);
+                c.size = 1.1f; c.moveSpeed = 0.35f; c.wanderRadius = 1;
+            });
+
+            var climber = LoadOrCreate<CreatureDefinition>(folder + "/Barkbit.asset", c =>
+            {
+                c.id = "barkbit"; c.displayName = "Barkbit"; c.rarity = Simulation.Rarity.Common;
+                c.hint = "Wants a roof of leaves and a soft lawn.";
+                c.description = "A busy, bushy-tailed climber. It nests in a tree and forages in the grass below.";
+                c.discoveryReward = 25;
+                c.conditions = new[] { Nearby("tree", 1, 0), Nearby("grass", 2, 1) };
+                c.checkIntervalSeconds = 12f; c.chancePerCheck = 0.3f; c.populationCap = 2; c.leaveAfterSeconds = 120f;
+                c.shape = CreatureShape.Climber; c.primaryColor = new Color(0.72f, 0.40f, 0.22f); c.secondaryColor = new Color(0.95f, 0.70f, 0.45f);
+                c.size = 1f; c.moveSpeed = 0.8f; c.wanderRadius = 2;
+            });
+
+            var rare = LoadOrCreate<CreatureDefinition>(folder + "/Lanternmoth.asset", c =>
+            {
+                c.id = "lanternmoth"; c.displayName = "Lanternmoth"; c.rarity = Simulation.Rarity.Rare;
+                c.hint = "Old wood, a blossom at its side, still water close by... and it hates to fly alone.";
+                c.description = "A rare moth that glows like a little lantern. It rests in trees with flowers at their feet, beside water, and only when other wings are about.";
+                c.discoveryReward = 120;
+                c.conditions = new[]
+                {
+                    new SpawnConditionData { kind = ConditionKind.PlantsTouching, plant = Plant("tree"), otherPlant = Plant("flower"), radius = 0 },
+                    new SpawnConditionData { kind = ConditionKind.NearWater, radius = 2 },
+                    new SpawnConditionData { kind = ConditionKind.CreatureLivesHere, creature = flutter },
+                };
+                c.checkIntervalSeconds = 15f; c.chancePerCheck = 0.25f; c.populationCap = 1; c.leaveAfterSeconds = 180f;
+                c.shape = CreatureShape.Glow; c.primaryColor = new Color(0.75f, 0.95f, 1f); c.secondaryColor = new Color(1f, 0.92f, 0.55f);
+                c.size = 1.1f; c.moveSpeed = 0.5f; c.wanderRadius = 1;
+            });
+
+            return new[] { hopper, flutter, newt, climber, rare };
         }
 
         private static void CreateScene(GameConfig config)
